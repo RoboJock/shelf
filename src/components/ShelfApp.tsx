@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { coverUrl, readSearch, type LibraryHit, type ShelfBook } from "../lib/books";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { coverUrl, readSearch, shelfOrders, sortShelf, type LibraryHit, type ShelfBook, type ShelfOrder } from "../lib/books";
 import { createBackend, firebasePublicConfig, type AppUser, type Backend } from "../lib/backend";
 
 export function ShelfApp() {
@@ -14,6 +14,9 @@ export function ShelfApp() {
   const [searching, setSearching] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [status, setStatus] = useState("");
+  const [order, setOrder] = useState<ShelfOrder>("newest");
+  const [orderOpen, setOrderOpen] = useState(false);
+  const orderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const saved = document.documentElement.dataset.theme;
@@ -21,6 +24,22 @@ export function ShelfApp() {
   }, []);
 
   useEffect(() => backend.subscribe(setUser), [backend]);
+
+  useEffect(() => {
+    if (!orderOpen) return;
+    function close(event: PointerEvent) {
+      if (!orderRef.current?.contains(event.target as Node)) setOrderOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOrderOpen(false);
+    }
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [orderOpen]);
 
   useEffect(() => {
     if (!user) return;
@@ -80,6 +99,8 @@ export function ShelfApp() {
   }
 
   const saved = new Set(books.map((book) => book.id));
+  const shelf = useMemo(() => sortShelf(books, order), [books, order]);
+  const orderLabel = shelfOrders.find((item) => item.id === order)?.label ?? "Newest first";
   const config = firebasePublicConfig();
 
   return (
@@ -103,8 +124,7 @@ export function ShelfApp() {
             {theme === "dark" ? <MoonIcon /> : <SunIcon />}
           </button>
           <button type="button" className="who" onClick={() => setAccountOpen((open) => !open)}>
-            <span>{user?.name ?? "Guest"}</span>
-            <small>{user?.guest !== false ? "In this browser" : user.email || "Account"}</small>
+            {user?.name ?? "Guest"}
           </button>
         </div>
       </nav>
@@ -120,8 +140,9 @@ export function ShelfApp() {
         />
       ) : null}
 
+      <div className="desk">
       <h1>What are you reading?</h1>
-      <p className="lede">Search Open Library, then keep the cover, author, and year on your shelf.</p>
+      <p className="lede">Search for a book, then add it to your shelf.</p>
       {backend.mode === "local" ? (
         <p className="banner">
           {config
@@ -134,7 +155,7 @@ export function ShelfApp() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Title or author"
-          aria-label="Search Open Library"
+          aria-label="Search for a book"
         />
         <button type="submit" disabled={searching}>{searching ? "Searching…" : "Search"}</button>
       </form>
@@ -168,13 +189,42 @@ export function ShelfApp() {
       <section>
         <div className="section">
           <h2>On your shelf</h2>
-          <span>Newest first</span>
+          <div className="sort" ref={orderRef}>
+            <button
+              type="button"
+              className="sort-button"
+              aria-expanded={orderOpen}
+              aria-haspopup="menu"
+              onClick={() => setOrderOpen((open) => !open)}
+            >
+              {orderLabel}
+            </button>
+            {orderOpen ? (
+              <ul className="sort-menu" role="menu">
+                {shelfOrders.map((item) => (
+                  <li key={item.id} role="none">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={item.id === order}
+                      onClick={() => {
+                        setOrder(item.id);
+                        setOrderOpen(false);
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         </div>
         {books.length === 0 ? (
-          <p className="empty">Nothing saved yet. Search Open Library and keep a book.</p>
+          <p className="empty">Nothing saved yet. Search a book to add to your shelf.</p>
         ) : (
           <div className="books">
-            {books.map((book) => (
+            {shelf.map((book) => (
               <article key={book.id} className="book">
                 <Cover book={book} />
                 <h3>{book.title}</h3>
@@ -185,6 +235,7 @@ export function ShelfApp() {
           </div>
         )}
       </section>
+      </div>
     </main>
   );
 }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bookDocId, coverUrl, readBook, readSearch } from "./books";
+import { bookDocId, coverUrl, readBook, readSearch, sortShelf, type ShelfBook } from "./books";
 
 test("search results keep works with a title and skip duplicates", () => {
   const hits = readSearch({
@@ -19,6 +19,19 @@ test("search results keep works with a title and skip duplicates", () => {
   assert.equal(coverUrl(8261367), "https://covers.openlibrary.org/b/id/8261367-L.jpg");
   assert.equal(coverUrl(null), null);
   assert.equal(bookDocId("/works/OL82563W"), "OL82563W");
+});
+
+test("shelf order follows the chosen sort", () => {
+  const books: ShelfBook[] = [
+    { id: "b", title: "Piranesi", author: "Susanna Clarke", year: 2020, coverId: null, savedAt: 2 },
+    { id: "a", title: "Beloved", author: "Toni Morrison", year: 1987, coverId: null, savedAt: 3 },
+    { id: "c", title: "Circe", author: "Madeline Miller", year: 2018, coverId: null, savedAt: 1 },
+  ];
+  assert.deepEqual(sortShelf(books, "newest").map((book) => book.title), ["Beloved", "Piranesi", "Circe"]);
+  assert.deepEqual(sortShelf(books, "oldest").map((book) => book.title), ["Circe", "Piranesi", "Beloved"]);
+  assert.deepEqual(sortShelf(books, "title").map((book) => book.title), ["Beloved", "Circe", "Piranesi"]);
+  assert.deepEqual(sortShelf(books, "title-desc").map((book) => book.title), ["Piranesi", "Circe", "Beloved"]);
+  assert.deepEqual(sortShelf(books, "author").map((book) => book.author), ["Madeline Miller", "Susanna Clarke", "Toni Morrison"]);
 });
 
 test("saved book documents need a work key and a title", () => {

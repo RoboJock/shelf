@@ -15,6 +15,29 @@ export interface LibraryHit {
   coverId: number | null;
 }
 
+export type ShelfOrder = "newest" | "oldest" | "title" | "title-desc" | "author";
+
+export const shelfOrders: { id: ShelfOrder; label: string }[] = [
+  { id: "newest", label: "Newest first" },
+  { id: "oldest", label: "Oldest first" },
+  { id: "title", label: "Title A–Z" },
+  { id: "title-desc", label: "Title Z–A" },
+  { id: "author", label: "Author A–Z" },
+];
+
+export function sortShelf(books: ShelfBook[], order: ShelfOrder): ShelfBook[] {
+  const byTitle = (a: ShelfBook, b: ShelfBook) =>
+    a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
+    || a.author.localeCompare(b.author, undefined, { sensitivity: "base" });
+  return [...books].sort((a, b) => {
+    if (order === "newest") return b.savedAt - a.savedAt || byTitle(a, b);
+    if (order === "oldest") return a.savedAt - b.savedAt || byTitle(a, b);
+    if (order === "title") return byTitle(a, b);
+    if (order === "title-desc") return byTitle(b, a);
+    return a.author.localeCompare(b.author, undefined, { sensitivity: "base" }) || byTitle(a, b);
+  });
+}
+
 export function coverUrl(coverId: number | null): string | null {
   if (coverId === null || !Number.isInteger(coverId) || coverId <= 0) return null;
   return `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
