@@ -198,12 +198,17 @@ h1 {
 .empty { margin: 18px 0 0; }
 .books {
   margin-top: 22px;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 156px);
   justify-content: center;
+  align-items: stretch;
   gap: 28px;
 }
 .book, .book-slot { width: 156px; }
+.book.hit {
+  display: flex;
+  flex-direction: column;
+}
 .cover-slot {
   width: 156px;
   height: 234px;
@@ -243,8 +248,11 @@ h1 {
   font-size: 14px;
   font-weight: 600;
 }
+.hit button,
+.hit > p:last-child {
+  margin-top: auto;
+}
 .hit button {
-  margin-top: 10px;
   height: 36px;
   padding: 0 14px;
   font-size: 14px;
