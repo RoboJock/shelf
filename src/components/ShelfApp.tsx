@@ -23,12 +23,11 @@ export function ShelfApp() {
   const [orderOpen, setOrderOpen] = useState(false);
   const [shelves, setShelves] = useState<BookShelf[]>([]);
   const [activeShelf, setActiveShelf] = useState<BookShelf | null>(null);
-  const [shelfOpen, setShelfOpen] = useState(false);
-  const [naming, setNaming] = useState<null | "create" | "rename">(null);
+  const [creating, setCreating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [shelfTick, setShelfTick] = useState(0);
   const orderRef = useRef<HTMLDivElement>(null);
-  const shelfRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const saved = document.documentElement.dataset.theme;
@@ -38,17 +37,12 @@ export function ShelfApp() {
   useEffect(() => backend.subscribe(setUser), [backend]);
 
   useEffect(() => {
-    if (!orderOpen && !shelfOpen) return;
+    if (!orderOpen) return;
     function close(event: PointerEvent) {
-      const target = event.target as Node;
-      if (!orderRef.current?.contains(target)) setOrderOpen(false);
-      if (!shelfRef.current?.contains(target)) setShelfOpen(false);
+      if (!orderRef.current?.contains(event.target as Node)) setOrderOpen(false);
     }
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOrderOpen(false);
-        setShelfOpen(false);
-      }
+      if (event.key === "Escape") setOrderOpen(false);
     }
     document.addEventListener("pointerdown", close);
     document.addEventListener("keydown", onKey);
@@ -56,7 +50,7 @@ export function ShelfApp() {
       document.removeEventListener("pointerdown", close);
       document.removeEventListener("keydown", onKey);
     };
-  }, [orderOpen, shelfOpen]);
+  }, [orderOpen]);
 
   useEffect(() => {
     if (!user) return;
@@ -134,6 +128,56 @@ export function ShelfApp() {
       setBooks(await backend.books());
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not remove that book.");
+    }
+  }
+
+  function openShelf(id: string) {
+    if (id === activeShelf?.id) return;
+    setStatus("");
+    void backend.selectShelf(id).then(() => setShelfTick((tick) => tick + 1)).catch((error: unknown) => {
+      setStatus(error instanceof Error ? error.message : "Could not open that shelf.");
+    });
+  }
+
+  function beginCreate() {
+    setEditingId(null);
+    setDraft("");
+    setCreating(true);
+  }
+
+  function beginEdit(shelf: BookShelf) {
+    setCreating(false);
+    setDraft(shelf.name);
+    setEditingId(shelf.id);
+  }
+
+  function cancelShelfEdit() {
+    setCreating(false);
+    setEditingId(null);
+    setDraft("");
+  }
+
+  async function submitShelf(event: React.FormEvent) {
+    event.preventDefault();
+    setStatus("");
+    try {
+      if (creating) await backend.createShelf(draft);
+      else if (editingId) await backend.renameShelf(editingId, draft);
+      cancelShelfEdit();
+      setShelfTick((tick) => tick + 1);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not save that shelf name.");
+    }
+  }
+
+  async function removeShelf(id: string) {
+    setStatus("");
+    try {
+      await backend.deleteShelf(id);
+      cancelShelfEdit();
+      setShelfTick((tick) => tick + 1);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not delete that shelf.");
     }
   }
 
@@ -219,63 +263,7 @@ export function ShelfApp() {
 
       <section>
         <div className="section">
-          <div className="shelf-switch" ref={shelfRef}>
-            <button
-              type="button"
-              className="sort-button shelf-button"
-              aria-expanded={shelfOpen}
-              aria-haspopup="menu"
-              onClick={() => {
-                setShelfOpen((open) => !open);
-                setOrderOpen(false);
-              }}
-            >
-              <span>{activeShelf?.name ?? "My shelf"}</span>
-              <Chevron open={shelfOpen} />
-            </button>
-            {shelfOpen ? (
-              <ul className="sort-menu shelf-menu" role="menu">
-                {shelves.map((shelf) => (
-                  <li key={shelf.id} role="none">
-                    <button
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={shelf.id === activeShelf?.id}
-                      onClick={() => {
-                        setShelfOpen(false);
-                        setStatus("");
-                        void backend.selectShelf(shelf.id).then(() => setShelfTick((tick) => tick + 1)).catch((error: unknown) => {
-                          setStatus(error instanceof Error ? error.message : "Could not open that shelf.");
-                        });
-                      }}
-                    >
-                      {shelf.name}
-                    </button>
-                  </li>
-                ))}
-                <li role="none"><button type="button" role="menuitem" onClick={() => { setShelfOpen(false); setNaming("create"); setDraft(""); }}>New shelf</button></li>
-                <li role="none"><button type="button" role="menuitem" onClick={() => { setShelfOpen(false); setNaming("rename"); setDraft(activeShelf?.name ?? ""); }}>Rename</button></li>
-                {shelves.length > 1 ? (
-                  <li role="none">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setShelfOpen(false);
-                        if (!activeShelf) return;
-                        setStatus("");
-                        void backend.deleteShelf(activeShelf.id).then(() => setShelfTick((tick) => tick + 1)).catch((error: unknown) => {
-                          setStatus(error instanceof Error ? error.message : "Could not delete that shelf.");
-                        });
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </li>
-                ) : null}
-              </ul>
-            ) : null}
-          </div>
+          <h2>{activeShelf?.name ?? "My shelf"}</h2>
           <div className="sort" ref={orderRef}>
             <button
               type="button"
@@ -308,38 +296,55 @@ export function ShelfApp() {
             ) : null}
           </div>
         </div>
-        {naming ? (
-          <form
-            className="shelf-name"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setStatus("");
-              const action = naming === "create"
-                ? backend.createShelf(draft)
-                : activeShelf
-                  ? backend.renameShelf(activeShelf.id, draft)
-                  : Promise.resolve();
-              void action.then(() => {
-                setNaming(null);
-                setDraft("");
-                setShelfTick((tick) => tick + 1);
-              }).catch((error: unknown) => {
-                setStatus(error instanceof Error ? error.message : "Could not save that shelf name.");
-              });
-            }}
-          >
-            <input
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              aria-label={naming === "create" ? "New shelf name" : "Shelf name"}
-              maxLength={40}
-              required
-              autoFocus
-            />
-            <button type="submit">{naming === "create" ? "Create" : "Save"}</button>
-            <button type="button" className="quiet" onClick={() => setNaming(null)}>Cancel</button>
-          </form>
-        ) : null}
+        <div className="shelves" role="list">
+          {shelves.map((item) => editingId === item.id ? (
+            <form key={item.id} className="shelf-entry on" role="listitem" onSubmit={(event) => void submitShelf(event)}>
+              <input
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                aria-label="Shelf name"
+                maxLength={40}
+                required
+                autoFocus
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") cancelShelfEdit();
+                }}
+              />
+              <button type="submit">Save</button>
+              {shelves.length > 1 ? (
+                <button type="button" className="quiet" onClick={() => void removeShelf(item.id)}>Delete</button>
+              ) : null}
+              <button type="button" className="quiet" onClick={cancelShelfEdit}>Cancel</button>
+            </form>
+          ) : (
+            <div key={item.id} className={item.id === activeShelf?.id ? "shelf-entry on" : "shelf-entry"} role="listitem">
+              <button type="button" className="shelf-open" aria-current={item.id === activeShelf?.id ? "true" : undefined} onClick={() => openShelf(item.id)}>
+                {item.name}
+              </button>
+              <button type="button" className="shelf-edit" onClick={() => beginEdit(item)}>Edit</button>
+            </div>
+          ))}
+          {creating ? (
+            <form className="shelf-entry" role="listitem" onSubmit={(event) => void submitShelf(event)}>
+              <input
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                aria-label="New shelf name"
+                placeholder="Name this shelf"
+                maxLength={40}
+                required
+                autoFocus
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") cancelShelfEdit();
+                }}
+              />
+              <button type="submit">Add</button>
+              <button type="button" className="quiet" onClick={cancelShelfEdit}>Cancel</button>
+            </form>
+          ) : (
+            <button type="button" className="shelf-add" onClick={beginCreate}>New shelf</button>
+          )}
+        </div>
         {books.length === 0 ? (
           <>
             <div className="books" aria-hidden="true">

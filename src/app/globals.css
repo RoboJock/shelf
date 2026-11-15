@@ -144,35 +144,57 @@ h1 {
   border-top: 1px solid var(--line);
   padding-top: 18px;
 }
-.sort, .shelf-switch { position: relative; }
-.shelf-button span {
-  max-width: 220px;
+.sort { position: relative; }
+.shelves {
+  width: min(440px, 100%);
+  margin: 16px auto 0;
+  display: grid;
+  gap: 8px;
+}
+.shelf-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 6px 4px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.shelf-entry.on { background: var(--cover); }
+.shelf-entry:focus-within { border-color: var(--ink); }
+.shelf-open {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 18px;
+  font-weight: 560;
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.shelf-menu { min-width: 200px; }
-.shelf-name {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  margin-top: 14px;
-}
-.shelf-name input {
+.shelf-entry input {
+  flex: 1;
+  min-width: 0;
   height: 36px;
-  width: 180px;
-  border-radius: 8px;
-  border: 1px solid var(--field-line);
-  background: var(--field);
+  border: 0;
+  background: transparent;
   color: var(--ink);
-  padding: 0 10px;
+  padding: 0;
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
+  outline: none;
 }
-.shelf-name button {
+.shelf-entry input::placeholder { color: var(--placeholder); }
+.shelf-entry button[type="submit"] {
   height: 36px;
-  padding: 0 12px;
+  padding: 0 14px;
   border: 0;
   border-radius: 8px;
   background: var(--accent);
@@ -180,10 +202,24 @@ h1 {
   font-weight: 600;
   font-size: 14px;
 }
-.shelf-name .quiet {
+.shelf-edit, .shelf-entry .quiet {
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 14px;
+}
+.shelf-add {
+  height: 44px;
+  border: 1.5px dotted var(--muted);
+  border-radius: 10px;
   background: transparent;
   color: var(--ink);
-  border: 1px solid var(--field-line);
+  font-weight: 600;
+  font-size: 15px;
 }
 .sort-button {
   height: 36px;
