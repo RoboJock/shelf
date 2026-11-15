@@ -207,16 +207,9 @@ h1 {
 .cover-slot {
   width: 156px;
   height: 234px;
-  border: 1.5px dashed var(--field-line);
-  background: var(--field);
+  border: 1.5px dotted var(--muted);
+  background: var(--bg);
 }
-.book-slot .line {
-  height: 10px;
-  margin: 14px 0 0;
-  border-radius: 999px;
-  background: var(--cover);
-}
-.book-slot .line.short { width: 68%; margin-top: 8px; }
 .cover, .cover-fallback {
   width: 156px;
   height: 234px;

@@ -227,8 +227,6 @@ export function ShelfApp() {
               {Array.from({ length: 4 }, (_, index) => (
                 <div className="book-slot" key={index}>
                   <div className="cover-slot" />
-                  <div className="line" />
-                  <div className="line short" />
                 </div>
               ))}
             </div>
