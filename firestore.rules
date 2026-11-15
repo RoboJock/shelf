@@ -32,6 +32,31 @@ service cloud.firestore {
         allow create, update: if owns(userId) && bookOk(request.resource.data);
         allow delete: if owns(userId);
       }
+
+      match /shelves/{shelfId} {
+        allow read: if owns(userId);
+        allow create: if owns(userId)
+          && request.resource.data.uid == userId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 40
+          && request.resource.data.createdAt is int;
+        allow update: if owns(userId)
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 40
+          && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if owns(userId);
+
+        match /books/{bookId} {
+          allow read: if owns(userId);
+          allow create, update: if owns(userId)
+            && bookOk(request.resource.data)
+            && request.resource.data.shelfId == shelfId;
+          allow delete: if owns(userId);
+        }
+      }
     }
   }
 }

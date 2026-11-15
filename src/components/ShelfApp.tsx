@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { coverUrl, shelfOrders, sortShelf, type LibraryHit, type ShelfBook, type ShelfOrder } from "../lib/books";
 import { findBooks } from "../lib/search";
-import { createBackend, firebasePublicConfig, type AppUser, type Backend } from "../lib/backend";
+import { createBackend, firebasePublicConfig, type AppUser, type Backend, type BookShelf } from "../lib/backend";
 
 export function ShelfApp() {
   const backend = useMemo<Backend>(() => createBackend(), []);
@@ -21,7 +21,14 @@ export function ShelfApp() {
   const [status, setStatus] = useState("");
   const [order, setOrder] = useState<ShelfOrder>("newest");
   const [orderOpen, setOrderOpen] = useState(false);
+  const [shelves, setShelves] = useState<BookShelf[]>([]);
+  const [activeShelf, setActiveShelf] = useState<BookShelf | null>(null);
+  const [shelfOpen, setShelfOpen] = useState(false);
+  const [naming, setNaming] = useState<null | "create" | "rename">(null);
+  const [draft, setDraft] = useState("");
+  const [shelfTick, setShelfTick] = useState(0);
   const orderRef = useRef<HTMLDivElement>(null);
+  const shelfRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const saved = document.documentElement.dataset.theme;
@@ -31,12 +38,17 @@ export function ShelfApp() {
   useEffect(() => backend.subscribe(setUser), [backend]);
 
   useEffect(() => {
-    if (!orderOpen) return;
+    if (!orderOpen && !shelfOpen) return;
     function close(event: PointerEvent) {
-      if (!orderRef.current?.contains(event.target as Node)) setOrderOpen(false);
+      const target = event.target as Node;
+      if (!orderRef.current?.contains(target)) setOrderOpen(false);
+      if (!shelfRef.current?.contains(target)) setShelfOpen(false);
     }
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setOrderOpen(false);
+      if (event.key === "Escape") {
+        setOrderOpen(false);
+        setShelfOpen(false);
+      }
     }
     document.addEventListener("pointerdown", close);
     document.addEventListener("keydown", onKey);
@@ -44,20 +56,23 @@ export function ShelfApp() {
       document.removeEventListener("pointerdown", close);
       document.removeEventListener("keydown", onKey);
     };
-  }, [orderOpen]);
+  }, [orderOpen, shelfOpen]);
 
   useEffect(() => {
     if (!user) return;
     let cancel = false;
-    backend.books().then((next) => {
-      if (!cancel) setBooks(next);
+    Promise.all([backend.shelves(), backend.activeShelf(), backend.books()]).then(([nextShelves, nextActive, nextBooks]) => {
+      if (cancel) return;
+      setShelves(nextShelves);
+      setActiveShelf(nextActive);
+      setBooks(nextBooks);
     }).catch((error: unknown) => {
       if (!cancel) setStatus(error instanceof Error ? error.message : "Could not load the shelf.");
     });
     return () => {
       cancel = true;
     };
-  }, [backend, user]);
+  }, [backend, user, shelfTick]);
 
   useEffect(() => {
     const typed = query.trim();
@@ -158,9 +173,7 @@ export function ShelfApp() {
           backend={backend}
           user={user}
           onClose={() => setAccountOpen(false)}
-          onChange={() => {
-            void backend.books().then(setBooks).catch(() => undefined);
-          }}
+          onChange={() => setShelfTick((tick) => tick + 1)}
         />
       ) : null}
 
@@ -206,7 +219,63 @@ export function ShelfApp() {
 
       <section>
         <div className="section">
-          <h2>On your shelf</h2>
+          <div className="shelf-switch" ref={shelfRef}>
+            <button
+              type="button"
+              className="sort-button shelf-button"
+              aria-expanded={shelfOpen}
+              aria-haspopup="menu"
+              onClick={() => {
+                setShelfOpen((open) => !open);
+                setOrderOpen(false);
+              }}
+            >
+              <span>{activeShelf?.name ?? "My shelf"}</span>
+              <Chevron open={shelfOpen} />
+            </button>
+            {shelfOpen ? (
+              <ul className="sort-menu shelf-menu" role="menu">
+                {shelves.map((shelf) => (
+                  <li key={shelf.id} role="none">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={shelf.id === activeShelf?.id}
+                      onClick={() => {
+                        setShelfOpen(false);
+                        setStatus("");
+                        void backend.selectShelf(shelf.id).then(() => setShelfTick((tick) => tick + 1)).catch((error: unknown) => {
+                          setStatus(error instanceof Error ? error.message : "Could not open that shelf.");
+                        });
+                      }}
+                    >
+                      {shelf.name}
+                    </button>
+                  </li>
+                ))}
+                <li role="none"><button type="button" role="menuitem" onClick={() => { setShelfOpen(false); setNaming("create"); setDraft(""); }}>New shelf</button></li>
+                <li role="none"><button type="button" role="menuitem" onClick={() => { setShelfOpen(false); setNaming("rename"); setDraft(activeShelf?.name ?? ""); }}>Rename</button></li>
+                {shelves.length > 1 ? (
+                  <li role="none">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setShelfOpen(false);
+                        if (!activeShelf) return;
+                        setStatus("");
+                        void backend.deleteShelf(activeShelf.id).then(() => setShelfTick((tick) => tick + 1)).catch((error: unknown) => {
+                          setStatus(error instanceof Error ? error.message : "Could not delete that shelf.");
+                        });
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </li>
+                ) : null}
+              </ul>
+            ) : null}
+          </div>
           <div className="sort" ref={orderRef}>
             <button
               type="button"
@@ -239,6 +308,38 @@ export function ShelfApp() {
             ) : null}
           </div>
         </div>
+        {naming ? (
+          <form
+            className="shelf-name"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setStatus("");
+              const action = naming === "create"
+                ? backend.createShelf(draft)
+                : activeShelf
+                  ? backend.renameShelf(activeShelf.id, draft)
+                  : Promise.resolve();
+              void action.then(() => {
+                setNaming(null);
+                setDraft("");
+                setShelfTick((tick) => tick + 1);
+              }).catch((error: unknown) => {
+                setStatus(error instanceof Error ? error.message : "Could not save that shelf name.");
+              });
+            }}
+          >
+            <input
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              aria-label={naming === "create" ? "New shelf name" : "Shelf name"}
+              maxLength={40}
+              required
+              autoFocus
+            />
+            <button type="submit">{naming === "create" ? "Create" : "Save"}</button>
+            <button type="button" className="quiet" onClick={() => setNaming(null)}>Cancel</button>
+          </form>
+        ) : null}
         {books.length === 0 ? (
           <>
             <div className="books" aria-hidden="true">
@@ -248,7 +349,7 @@ export function ShelfApp() {
                 </div>
               ))}
             </div>
-            <p className="empty">Nothing saved yet. Search a book to add to your shelf.</p>
+            <p className="empty">Nothing saved on this shelf yet. Search a book to add it.</p>
           </>
         ) : (
           <div className="books">
@@ -295,7 +396,7 @@ function HitSection({
               <h3>{hit.title}</h3>
               <p>{hit.author}{hit.year ? ` · ${hit.year}` : ""}</p>
               {saved.has(hit.id) ? (
-                <p>On your shelf</p>
+                <p>On this shelf</p>
               ) : (
                 <button type="button" onClick={() => void onSave(hit)}>Save</button>
               )}
@@ -338,7 +439,7 @@ function AccountPanel({
       if (mode === "create") await backend.register(email, password, name);
       else await backend.signIn(email, password);
       setPassword("");
-      setMessage(mode === "create" ? "Account saved. This shelf is on the account now." : "Signed in.");
+      setMessage(mode === "create" ? "Account saved. These shelves are on the account now." : "Signed in.");
       onChange();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not sign in.");
@@ -350,8 +451,8 @@ function AccountPanel({
       <h2>{user?.guest !== false ? "Guest" : user?.name}</h2>
       <p>
         {user?.guest !== false
-          ? "Books stay in this browser until its data is cleared. An account keeps the same shelf."
-          : "This shelf is saved on the account."}
+          ? "Books stay in this browser until its data is cleared. An account keeps your shelves."
+          : "Your shelves are saved on the account."}
       </p>
       {user && !user.guest ? (
         <button

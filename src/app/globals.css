@@ -144,7 +144,47 @@ h1 {
   border-top: 1px solid var(--line);
   padding-top: 18px;
 }
-.sort { position: relative; }
+.sort, .shelf-switch { position: relative; }
+.shelf-button span {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shelf-menu { min-width: 200px; }
+.shelf-name {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.shelf-name input {
+  height: 36px;
+  width: 180px;
+  border-radius: 8px;
+  border: 1px solid var(--field-line);
+  background: var(--field);
+  color: var(--ink);
+  padding: 0 10px;
+  font: inherit;
+  font-size: 14px;
+}
+.shelf-name button {
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  font-size: 14px;
+}
+.shelf-name .quiet {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--field-line);
+}
 .sort-button {
   height: 36px;
   padding: 0 12px;

@@ -76,6 +76,44 @@ test("creating an account keeps the guest shelf, and another reader cannot see i
   await assert.rejects(() => guest.register("ben@example.com", "password2", "Ada"), /already has an account/);
 });
 
+test("a reader can keep named shelves and the same book on more than one", async () => {
+  memoryStorage();
+  const backend = createLocalBackend();
+  backend.subscribe(() => undefined);
+  assert.equal((await backend.activeShelf()).name, "My shelf");
+  await backend.saveBook(hit("/works/OL82563W", "Beloved"));
+  const night = await backend.createShelf("Nightstand");
+  assert.equal(night.name, "Nightstand");
+  assert.equal((await backend.books()).length, 0);
+  await backend.saveBook(hit("/works/OL82563W", "Beloved"));
+  await backend.saveBook(hit("/works/OL3W", "Piranesi"));
+  assert.deepEqual((await backend.books()).map((book) => book.title).sort(), ["Beloved", "Piranesi"]);
+  await backend.renameShelf(night.id, "By the bed");
+  assert.equal((await backend.activeShelf()).name, "By the bed");
+  await backend.selectShelf((await backend.shelves()).find((shelf) => shelf.name === "My shelf")!.id);
+  assert.deepEqual((await backend.books()).map((book) => book.title), ["Beloved"]);
+  await assert.rejects(() => backend.renameShelf(night.id, "   "), /shelf name/);
+  const shelves = await backend.shelves();
+  await backend.deleteShelf(shelves.find((shelf) => shelf.name === "By the bed")!.id);
+  assert.equal((await backend.shelves()).length, 1);
+  const last = (await backend.activeShelf()).id;
+  await assert.rejects(() => backend.deleteShelf(last), /at least one/);
+});
+
+test("books saved before shelves existed stay on My shelf", async () => {
+  memoryStorage();
+  localStorage.setItem("shelf-local-v1", JSON.stringify({
+    users: [],
+    session: null,
+    guestId: "guest-old",
+    books: [{ id: "/works/OL82563W", owner: "guest-old", title: "Beloved", author: "Toni Morrison", year: 1987, coverId: 1, savedAt: 5 }],
+  }));
+  const backend = createLocalBackend();
+  backend.subscribe(() => undefined);
+  assert.equal((await backend.activeShelf()).name, "My shelf");
+  assert.equal((await backend.books())[0]?.title, "Beloved");
+});
+
 test("account names and short passwords are rejected", async () => {
   memoryStorage();
   const backend = createLocalBackend();
