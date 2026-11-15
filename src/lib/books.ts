@@ -63,7 +63,7 @@ function coverOf(value: unknown): number | null {
   return value;
 }
 
-export function readSearch(payload: unknown): LibraryHit[] {
+export function readSearch(payload: unknown, limit = 12): LibraryHit[] {
   if (!payload || typeof payload !== "object" || !("docs" in payload) || !Array.isArray(payload.docs)) return [];
   const hits: LibraryHit[] = [];
   const seen = new Set<string>();
@@ -83,7 +83,7 @@ export function readSearch(payload: unknown): LibraryHit[] {
       year: yearOf(record.first_publish_year),
       coverId: coverOf(record.cover_i),
     });
-    if (hits.length === 8) break;
+    if (hits.length === limit) break;
   }
   return hits;
 }

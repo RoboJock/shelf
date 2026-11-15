@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { coverUrl, readSearch, shelfOrders, sortShelf, type LibraryHit, type ShelfBook, type ShelfOrder } from "../lib/books";
+import { coverUrl, shelfOrders, sortShelf, type LibraryHit, type ShelfBook, type ShelfOrder } from "../lib/books";
+import { findBooks } from "../lib/search";
 import { createBackend, firebasePublicConfig, type AppUser, type Backend } from "../lib/backend";
 
 export function ShelfApp() {
@@ -11,6 +12,10 @@ export function ShelfApp() {
   const [books, setBooks] = useState<ShelfBook[]>([]);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<LibraryHit[] | null>(null);
+  const [hitsClose, setHitsClose] = useState(false);
+  const [preview, setPreview] = useState<LibraryHit[] | null>(null);
+  const [previewClose, setPreviewClose] = useState(false);
+  const [submitted, setSubmitted] = useState("");
   const [searching, setSearching] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [status, setStatus] = useState("");
@@ -54,24 +59,43 @@ export function ShelfApp() {
     };
   }, [backend, user]);
 
+  useEffect(() => {
+    const typed = query.trim();
+    if (typed.length < 2 || typed === submitted) {
+      setPreview(null);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      findBooks(typed, 6, controller.signal).then((result) => {
+        setPreview(result.hits);
+        setPreviewClose(result.close);
+      }).catch((error: unknown) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setPreview([]);
+      });
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query, submitted]);
+
   async function search(event: React.FormEvent) {
     event.preventDefault();
     const q = query.trim();
     if (!q) return;
     setSearching(true);
     setStatus("");
+    setSubmitted(q);
     try {
-      const response = await fetch(`https://openlibrary.org/search.json?${new URLSearchParams({
-        q,
-        limit: "12",
-        fields: "key,title,author_name,cover_i,first_publish_year",
-      })}`);
-      if (!response.ok) throw new Error("Open Library did not answer. Try the search again.");
-      const hitsNext = readSearch(await response.json());
-      setHits(hitsNext);
-      if (hitsNext.length === 0) setStatus("No books matched that search.");
+      const result = await findBooks(q, 12);
+      setHits(result.hits);
+      setHitsClose(result.close);
+      if (result.hits.length === 0) setStatus("No books matched that search.");
     } catch (error) {
       setHits([]);
+      setHitsClose(false);
       setStatus(error instanceof Error ? error.message : "Open Library did not answer.");
     } finally {
       setSearching(false);
@@ -161,29 +185,23 @@ export function ShelfApp() {
       </form>
       {status ? <p className="status" role="status">{status}</p> : null}
 
+      {preview && preview.length > 0 ? (
+        <HitSection
+          title={previewClose ? "Close matches" : "Preview"}
+          hits={preview}
+          saved={saved}
+          onSave={save}
+        />
+      ) : null}
+
       {hits ? (
-        <section>
-          <div className="section">
-            <h2>Open Library</h2>
-            <span>{hits.length} {hits.length === 1 ? "result" : "results"}</span>
-          </div>
-          {hits.length === 0 ? <p className="empty">Try another title or author.</p> : (
-            <div className="books">
-              {hits.map((hit) => (
-                <article key={hit.id} className="book hit">
-                  <Cover book={hit} />
-                  <h3>{hit.title}</h3>
-                  <p>{hit.author}{hit.year ? ` · ${hit.year}` : ""}</p>
-                  {saved.has(hit.id) ? (
-                    <p>On your shelf</p>
-                  ) : (
-                    <button type="button" onClick={() => void save(hit)}>Save</button>
-                  )}
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
+        <HitSection
+          title={hitsClose ? "Close matches" : "Open Library"}
+          hits={hits}
+          saved={saved}
+          onSave={save}
+          empty="Try another title or author."
+        />
       ) : null}
 
       <section>
@@ -247,6 +265,45 @@ export function ShelfApp() {
       </section>
       </div>
     </main>
+  );
+}
+
+function HitSection({
+  title,
+  hits,
+  saved,
+  onSave,
+  empty,
+}: {
+  title: string;
+  hits: LibraryHit[];
+  saved: Set<string>;
+  onSave: (hit: LibraryHit) => void;
+  empty?: string;
+}) {
+  return (
+    <section>
+      <div className="section">
+        <h2>{title}</h2>
+        <span>{hits.length} {hits.length === 1 ? "result" : "results"}</span>
+      </div>
+      {hits.length === 0 && empty ? <p className="empty">{empty}</p> : (
+        <div className="books">
+          {hits.map((hit) => (
+            <article key={hit.id} className="book hit">
+              <Cover book={hit} />
+              <h3>{hit.title}</h3>
+              <p>{hit.author}{hit.year ? ` · ${hit.year}` : ""}</p>
+              {saved.has(hit.id) ? (
+                <p>On your shelf</p>
+              ) : (
+                <button type="button" onClick={() => void onSave(hit)}>Save</button>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
