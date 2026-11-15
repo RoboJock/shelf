@@ -197,7 +197,8 @@ export function ShelfApp() {
               aria-haspopup="menu"
               onClick={() => setOrderOpen((open) => !open)}
             >
-              {orderLabel}
+              <span>{orderLabel}</span>
+              <Chevron open={orderOpen} />
             </button>
             {orderOpen ? (
               <ul className="sort-menu" role="menu">
@@ -221,7 +222,18 @@ export function ShelfApp() {
           </div>
         </div>
         {books.length === 0 ? (
-          <p className="empty">Nothing saved yet. Search a book to add to your shelf.</p>
+          <>
+            <div className="books" aria-hidden="true">
+              {Array.from({ length: 4 }, (_, index) => (
+                <div className="book-slot" key={index}>
+                  <div className="cover-slot" />
+                  <div className="line" />
+                  <div className="line short" />
+                </div>
+              ))}
+            </div>
+            <p className="empty">Nothing saved yet. Search a book to add to your shelf.</p>
+          </>
         ) : (
           <div className="books">
             {shelf.map((book) => (
@@ -329,6 +341,14 @@ function AccountPanel({
       )}
       {message ? <p className="status" role="status">{message}</p> : null}
     </section>
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg className={open ? "sort-chevron open" : "sort-chevron"} viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3.2 6.1 8 10.9l4.8-4.8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 

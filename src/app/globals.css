@@ -154,7 +154,12 @@ h1 {
   color: var(--ink);
   font-size: 14px;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
+.sort-chevron { width: 16px; height: 16px; display: block; flex: none; }
+.sort-chevron.open { transform: rotate(180deg); }
 .sort-menu {
   position: absolute;
   top: calc(100% + 6px);
@@ -198,7 +203,20 @@ h1 {
   justify-content: center;
   gap: 28px;
 }
-.book { width: 156px; }
+.book, .book-slot { width: 156px; }
+.cover-slot {
+  width: 156px;
+  height: 234px;
+  border: 1.5px dashed var(--field-line);
+  background: var(--field);
+}
+.book-slot .line {
+  height: 10px;
+  margin: 14px 0 0;
+  border-radius: 999px;
+  background: var(--cover);
+}
+.book-slot .line.short { width: 68%; margin-top: 8px; }
 .cover, .cover-fallback {
   width: 156px;
   height: 234px;
