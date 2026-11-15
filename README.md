@@ -2,7 +2,9 @@
 
 A reading shelf. Search Open Library, then keep the cover, author, and year.
 
-Accounts use Firebase Authentication and Cloud Firestore. GitHub is a sign-in provider through Firebase. Without Firebase environment variables the shelf still runs: guest books stay in this browser until its data is cleared, and GitHub sign-in stays off.
+Accounts and saved books use Firebase Authentication and Cloud Firestore. The public site is Firebase Hosting, the same kind of link as Study Deck and Puzzle Cube.
+
+A shelf can be kept without an account. It stays in this browser until its data is cleared. Creating an account keeps that same shelf.
 
 ## Run it
 
@@ -12,14 +14,24 @@ npm test
 npm run dev
 ```
 
-## Connect Firebase and GitHub
+Copy `.env.example` to `.env.local` and paste the web app config from Firebase Project settings. Those values are the public client config, not a service account. Do not commit `.env.local`.
+
+Without that file the shelf still runs, and books stay in this browser.
+
+## Share it
 
 1. Create a Firebase project and a web app. Set that project id in `.firebaserc`.
-2. Copy `.env.example` to `.env.local` and fill in the web app config. Those values are the public client config, not a service account.
-3. In Authentication, enable Anonymous, Email/Password, and GitHub.
-4. In GitHub, create an OAuth app. Set the callback URL to `https://YOUR_PROJECT.firebaseapp.com/__/auth/handler` and paste the client id and secret into the Firebase GitHub provider.
-5. Add this site’s domain to Authentication authorized domains.
-6. Deploy the rules in `firestore.rules`: `npx firebase-tools deploy --only firestore:rules`.
-7. Build with the env vars set, then deploy hosting from the `out` folder if you host on Firebase: `npx firebase-tools deploy --only hosting`.
+2. In Authentication, enable Anonymous and Email/Password.
+3. Create a Cloud Firestore database in production mode.
+4. Add this site’s domain to Authentication authorized domains. Firebase Hosting’s `web.app` domain is added for the project, and a custom domain needs to be added too.
+5. From this folder, after `npx firebase-tools login`:
 
-A guest is an anonymous Firebase user. Their books stay with that browser session until the browser data is cleared, or until they create an account, which keeps the same shelf. GitHub Actions runs `npm test` and `npm run build` on every push.
+```bash
+npm test
+npm run build
+npx firebase-tools deploy --only firestore:rules,hosting
+```
+
+The build writes the site to `out/`. The public address is `https://YOUR_PROJECT_ID.web.app`.
+
+GitHub Actions runs `npm test` and `npm run build` on every push.

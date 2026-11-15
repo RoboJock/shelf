@@ -1,15 +1,12 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import {
   EmailAuthProvider,
-  GithubAuthProvider,
   createUserWithEmailAndPassword,
   getAuth,
   linkWithCredential,
-  linkWithPopup,
   onAuthStateChanged,
   signInAnonymously,
   signInWithEmailAndPassword,
-  signInWithPopup,
   signOut,
   updateProfile,
   type Auth,
@@ -34,7 +31,7 @@ export interface AppUser {
   name: string;
   email: string;
   guest: boolean;
-  provider: "guest" | "password" | "github";
+  provider: "guest" | "password";
 }
 
 export interface Backend {
@@ -42,7 +39,6 @@ export interface Backend {
   subscribe(listener: (user: AppUser | null) => void): () => void;
   register(email: string, password: string, name: string): Promise<void>;
   signIn(email: string, password: string): Promise<void>;
-  signInGitHub(): Promise<void>;
   signOut(): Promise<void>;
   saveBook(hit: LibraryHit): Promise<void>;
   removeBook(id: string): Promise<void>;
@@ -66,11 +62,7 @@ export function firebasePublicConfig(): Record<string, string> | null {
 function friendly(error: unknown): Error {
   const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
   const text: Record<string, string> = {
-    "auth/operation-not-allowed": "That sign-in method is turned off in the Firebase console.",
-    "auth/popup-blocked": "The browser blocked the GitHub window. Allow popups and try again.",
-    "auth/popup-closed-by-user": "The GitHub window was closed before it finished.",
-    "auth/account-exists-with-different-credential": "That email already belongs to a different sign-in method.",
-    "auth/credential-already-in-use": "That GitHub account is already registered. Sign in with GitHub instead of linking it.",
+    "auth/operation-not-allowed": "Email sign-in is turned off in the Firebase console.",
     "auth/email-already-in-use": "That email already has an account. Sign in instead.",
     "auth/invalid-credential": "Email or password did not match.",
     "auth/invalid-email": "That email address does not look valid.",
@@ -83,14 +75,12 @@ function friendly(error: unknown): Error {
 }
 
 function asUser(user: User): AppUser {
-  const github = user.providerData.some((provider) => provider.providerId === "github.com");
-  const password = user.providerData.some((provider) => provider.providerId === "password");
   return {
     id: user.uid,
     name: user.displayName?.trim() || (user.isAnonymous ? "Guest" : "Reader"),
     email: user.email ?? "",
     guest: user.isAnonymous,
-    provider: user.isAnonymous ? "guest" : github ? "github" : password ? "password" : "guest",
+    provider: user.isAnonymous ? "guest" : "password",
   };
 }
 
@@ -181,20 +171,6 @@ export function createFirebaseBackend(): Backend {
         const { auth: current } = services();
         const signed = await signInWithEmailAndPassword(current, email.trim(), password);
         if (signed.user.displayName) await remember(signed.user, signed.user.displayName);
-      } catch (error) {
-        throw friendly(error);
-      }
-    },
-    async signInGitHub() {
-      try {
-        const { auth: current } = services();
-        const provider = new GithubAuthProvider();
-        const user = current.currentUser;
-        const result = user?.isAnonymous ? await linkWithPopup(user, provider) : await signInWithPopup(current, provider);
-        const githubName = (result.user.displayName ?? "").trim().replace(/\s+/g, " ").slice(0, 24);
-        const name = githubName.length >= 2 ? githubName : "GitHub reader";
-        await updateProfile(result.user, { displayName: name });
-        await remember(result.user, name);
       } catch (error) {
         throw friendly(error);
       }
@@ -341,9 +317,6 @@ export function createLocalBackend(): Backend {
       writeLocal(state);
       emit();
     },
-    async signInGitHub() {
-      throw new Error("GitHub sign-in runs through Firebase. Connect the Firebase project to use it.");
-    },
     async signOut() {
       const state = ensureGuest(readLocal());
       state.session = null;
@@ -408,7 +381,6 @@ function createResilientBackend(): Backend {
     },
     register: (...args) => active.register(...args),
     signIn: (...args) => active.signIn(...args),
-    signInGitHub: () => active.signInGitHub(),
     signOut: () => active.signOut(),
     saveBook: (hit) => active.saveBook(hit),
     removeBook: (id) => active.removeBook(id),

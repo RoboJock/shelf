@@ -204,7 +204,7 @@ h1 {
 .account h2 { margin: 0 0 8px; font-family: var(--font-display), Georgia, serif; font-size: 28px; }
 .account p { margin: 0 0 12px; color: var(--muted); }
 .account .row { display: flex; gap: 8px; margin-bottom: 8px; }
-.account .row button, .account .github, .account .sign-out {
+.account .row button, .account .sign-out {
   height: 40px;
   border-radius: 8px;
   border: 1px solid var(--field-line);
@@ -213,7 +213,7 @@ h1 {
   padding: 0 14px;
   font-weight: 600;
 }
-.account .row button.on, .account .github, .account .sign-out.primary, .account form button[type="submit"] {
+.account .row button.on, .account form button[type="submit"] {
   background: var(--accent);
   border-color: transparent;
   color: var(--on-accent);
@@ -227,7 +227,7 @@ h1 {
   padding: 0 12px;
   font-size: 16px;
 }
-.account form button[type="submit"], .account .github { width: 100%; margin-top: 8px; }
+.account form button[type="submit"] { width: 100%; margin-top: 8px; }
 
 @media (max-width: 800px) {
   .page { padding: 28px 20px 48px; }

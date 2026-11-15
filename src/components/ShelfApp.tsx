@@ -104,7 +104,7 @@ export function ShelfApp() {
           </button>
           <button type="button" className="who" onClick={() => setAccountOpen((open) => !open)}>
             <span>{user?.name ?? "Guest"}</span>
-            <small>{user?.guest !== false ? "In this browser" : user.email || "GitHub"}</small>
+            <small>{user?.guest !== false ? "In this browser" : user.email || "Account"}</small>
           </button>
         </div>
       </nav>
@@ -126,7 +126,7 @@ export function ShelfApp() {
         <p className="banner">
           {config
             ? `Firebase project ${config.projectId} is connected, but sign-in is still off, so this shelf stays in the browser.`
-            : "Firebase is not connected, so this shelf stays in the browser until its data is cleared. GitHub sign-in starts working when the Firebase project is connected."}
+            : "Firebase is not connected, so this shelf stays in the browser until its data is cleared."}
         </p>
       ) : null}
       <form className="search" onSubmit={(event) => void search(event)}>
@@ -274,20 +274,6 @@ function AccountPanel({
             </label>
             <button type="submit">{mode === "create" ? "Create account" : "Sign in"}</button>
           </form>
-          <button
-            type="button"
-            className="github"
-            onClick={() => {
-              void backend.signInGitHub().then(() => {
-                setMessage("Signed in with GitHub.");
-                onChange();
-              }).catch((error: unknown) => {
-                setMessage(error instanceof Error ? error.message : "GitHub sign-in did not finish.");
-              });
-            }}
-          >
-            Continue with GitHub
-          </button>
         </>
       )}
       {message ? <p className="status" role="status">{message}</p> : null}

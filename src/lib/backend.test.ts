@@ -68,7 +68,6 @@ test("creating an account keeps the guest shelf, and another reader cannot see i
   await assert.rejects(() => guest.signIn("ada@example.com", "wrong-password"), /did not match/);
   await guest.signIn("ada@example.com", "password1");
   await assert.rejects(() => guest.register("ben@example.com", "password2", "Ada"), /already has an account/);
-  await assert.rejects(() => guest.signInGitHub(), /Firebase/);
 });
 
 test("account names and short passwords are rejected", async () => {
