@@ -263,40 +263,7 @@ export function ShelfApp() {
 
       <section>
         <div className="section">
-          <h2>{activeShelf?.name ?? "My shelf"}</h2>
-          <div className="sort" ref={orderRef}>
-            <button
-              type="button"
-              className="sort-button"
-              aria-expanded={orderOpen}
-              aria-haspopup="menu"
-              onClick={() => setOrderOpen((open) => !open)}
-            >
-              <span>{orderLabel}</span>
-              <Chevron open={orderOpen} />
-            </button>
-            {orderOpen ? (
-              <ul className="sort-menu" role="menu">
-                {shelfOrders.map((item) => (
-                  <li key={item.id} role="none">
-                    <button
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={item.id === order}
-                      onClick={() => {
-                        setOrder(item.id);
-                        setOrderOpen(false);
-                      }}
-                    >
-                      {item.label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        </div>
-        <div className="shelves" role="list">
+          <div className="shelves" role="list">
           {shelves.map((item) => editingId === item.id ? (
             <form key={item.id} className="shelf-entry on" role="listitem" onSubmit={(event) => void submitShelf(event)}>
               <input
@@ -344,6 +311,38 @@ export function ShelfApp() {
           ) : (
             <button type="button" className="shelf-add" onClick={beginCreate}>New shelf</button>
           )}
+          </div>
+          <div className="sort" ref={orderRef}>
+            <button
+              type="button"
+              className="sort-button"
+              aria-expanded={orderOpen}
+              aria-haspopup="menu"
+              onClick={() => setOrderOpen((open) => !open)}
+            >
+              <span>{orderLabel}</span>
+              <Chevron open={orderOpen} />
+            </button>
+            {orderOpen ? (
+              <ul className="sort-menu" role="menu">
+                {shelfOrders.map((item) => (
+                  <li key={item.id} role="none">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={item.id === order}
+                      onClick={() => {
+                        setOrder(item.id);
+                        setOrderOpen(false);
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         </div>
         {books.length === 0 ? (
           <>
