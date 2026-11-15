@@ -100,6 +100,22 @@ test("a reader can keep named shelves and the same book on more than one", async
   await assert.rejects(() => backend.deleteShelf(last), /at least one/);
 });
 
+test("a saved book goes on the shelf that was chosen", async () => {
+  memoryStorage();
+  const backend = createLocalBackend();
+  backend.subscribe(() => undefined);
+  const night = await backend.createShelf("Nightstand");
+  const mine = (await backend.shelves()).find((shelf) => shelf.name === "My shelf");
+  assert.ok(mine);
+  await backend.saveBook(hit("/works/OL82563W", "Beloved"), mine.id);
+  await backend.saveBook(hit("/works/OL3W", "Piranesi"), night.id);
+  assert.deepEqual((await backend.books(mine.id)).map((book) => book.title), ["Beloved"]);
+  assert.deepEqual((await backend.books(night.id)).map((book) => book.title), ["Piranesi"]);
+  await backend.removeBook("/works/OL3W", night.id);
+  assert.equal((await backend.books(night.id)).length, 0);
+  assert.equal((await backend.books(mine.id)).length, 1);
+});
+
 test("books saved before shelves existed stay on My shelf", async () => {
   memoryStorage();
   localStorage.setItem("shelf-local-v1", JSON.stringify({

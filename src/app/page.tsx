@@ -1,5 +1,5 @@
-import { ShelfApp } from "../components/ShelfApp";
+import { HomeDesk } from "../components/HomeDesk";
 
 export default function Page() {
-  return <ShelfApp />;
+  return <HomeDesk />;
 }

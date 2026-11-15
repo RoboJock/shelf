@@ -50,9 +50,9 @@ export interface Backend {
   createShelf(name: string): Promise<BookShelf>;
   renameShelf(id: string, name: string): Promise<void>;
   deleteShelf(id: string): Promise<void>;
-  saveBook(hit: LibraryHit): Promise<void>;
-  removeBook(id: string): Promise<void>;
-  books(): Promise<ShelfBook[]>;
+  saveBook(hit: LibraryHit, shelfId?: string): Promise<void>;
+  removeBook(id: string, shelfId?: string): Promise<void>;
+  books(shelfId?: string): Promise<ShelfBook[]>;
 }
 
 export function firebasePublicConfig(): Record<string, string> | null {
@@ -361,40 +361,43 @@ export function createFirebaseBackend(): Backend {
         if (next) rememberOpen(user.uid, next.id);
       }
     },
-    async saveBook(hit) {
+    async saveBook(hit, shelfId) {
       const { auth: current } = services();
       const user = current.currentUser;
       if (!user) {
-        localSave(guestOwner(), hit);
+        localSave(guestOwner(), hit, shelfId);
         return;
       }
       if (!hit.id.startsWith("/works/") || !hit.title.trim()) throw new Error("That book could not be saved.");
       const { db: database } = services();
       const shelves = await remoteShelves(user);
-      const currentShelf = chosenShelf(user.uid, shelves);
+      const currentShelf = shelfId ? shelves.find((shelf) => shelf.id === shelfId) : chosenShelf(user.uid, shelves);
+      if (!currentShelf) throw new Error("That shelf is not here.");
       const ref = doc(database, "users", user.uid, "shelves", currentShelf.id, "books", bookDocId(hit.id));
       if ((await getDoc(ref)).exists()) return;
       const name = user.displayName?.trim() || "Reader";
       await setDoc(doc(database, "users", user.uid), { name, guest: false, updatedAt: serverTimestamp() }, { merge: true });
       await setDoc(ref, { ...bookPayload(user, hit, Date.now()), shelfId: currentShelf.id });
     },
-    async removeBook(id) {
+    async removeBook(id, shelfId) {
       const { auth: current, db: database } = services();
       const user = current.currentUser;
       if (!user) {
-        localRemove(guestOwner(), id);
+        localRemove(guestOwner(), id, shelfId);
         return;
       }
       const shelves = await remoteShelves(user);
-      const currentShelf = chosenShelf(user.uid, shelves);
+      const currentShelf = shelfId ? shelves.find((shelf) => shelf.id === shelfId) : chosenShelf(user.uid, shelves);
+      if (!currentShelf) throw new Error("That shelf is not here.");
       await deleteDoc(doc(database, "users", user.uid, "shelves", currentShelf.id, "books", bookDocId(id)));
     },
-    async books() {
+    async books(shelfId) {
       const { auth: current, db: database } = services();
       const user = current.currentUser;
-      if (!user) return localBooks(guestOwner());
+      if (!user) return localBooks(guestOwner(), shelfId);
       const shelves = await remoteShelves(user);
-      const currentShelf = chosenShelf(user.uid, shelves);
+      const currentShelf = shelfId ? shelves.find((shelf) => shelf.id === shelfId) : chosenShelf(user.uid, shelves);
+      if (!currentShelf) throw new Error("That shelf is not here.");
       const snap = await getDocs(query(collection(database, "users", user.uid, "shelves", currentShelf.id, "books"), orderBy("savedAt", "desc")));
       return snap.docs.flatMap((item) => {
         const book = readBook(item.id, item.data());
@@ -554,24 +557,32 @@ function localDelete(owner: string, id: string) {
   writeLocal(state);
 }
 
-function localBooks(owner: string): ShelfBook[] {
-  const state = ensureGuest(readLocal());
-  const shelf = localActive(owner);
-  return state.books
-    .filter((book) => book.owner === owner && book.shelfId === shelf.id)
+function chosenLocalShelf(owner: string, shelfId?: string): string {
+  const shelves = ownerShelves(owner);
+  if (shelfId) {
+    if (!shelves.some((shelf) => shelf.id === shelfId)) throw new Error("That shelf is not here.");
+    return shelfId;
+  }
+  const state = readLocal();
+  return shelves.some((shelf) => shelf.id === state.active[owner]) ? state.active[owner] : shelves[0].id;
+}
+
+function localBooks(owner: string, shelfId?: string): ShelfBook[] {
+  const id = chosenLocalShelf(owner, shelfId);
+  return readLocal()
+    .books.filter((book) => book.owner === owner && book.shelfId === id)
     .sort((a, b) => b.savedAt - a.savedAt);
 }
 
-function localSave(owner: string, hit: LibraryHit) {
+function localSave(owner: string, hit: LibraryHit, shelfId?: string) {
   if (!hit.id.startsWith("/works/") || !hit.title.trim()) throw new Error("That book could not be saved.");
+  const id = chosenLocalShelf(owner, shelfId);
   const state = ensureGuest(readLocal());
-  const shelf = ensureOwnerShelf(state, owner);
-  const activeId = state.shelves.some((item) => item.owner === owner && item.id === state.active[owner]) ? state.active[owner] : shelf.id;
-  if (state.books.some((book) => book.owner === owner && book.shelfId === activeId && book.id === hit.id)) return;
+  if (state.books.some((book) => book.owner === owner && book.shelfId === id && book.id === hit.id)) return;
   state.books.push({
     id: hit.id,
     owner,
-    shelfId: activeId,
+    shelfId: id,
     title: hit.title.slice(0, 300),
     author: (hit.author || "Unknown").slice(0, 200),
     year: hit.year,
@@ -581,10 +592,10 @@ function localSave(owner: string, hit: LibraryHit) {
   writeLocal(state);
 }
 
-function localRemove(owner: string, id: string) {
+function localRemove(owner: string, id: string, shelfId?: string) {
+  const shelf = chosenLocalShelf(owner, shelfId);
   const state = ensureGuest(readLocal());
-  const shelf = localActive(owner);
-  state.books = state.books.filter((book) => !(book.owner === owner && book.shelfId === shelf.id && book.id === id));
+  state.books = state.books.filter((book) => !(book.owner === owner && book.shelfId === shelf && book.id === id));
   writeLocal(state);
 }
 
@@ -716,14 +727,14 @@ export function createLocalBackend(): Backend {
       writeLocal(state);
       emit();
     },
-    async saveBook(hit) {
-      localSave(current().id, hit);
+    async saveBook(hit, shelfId) {
+      localSave(current().id, hit, shelfId);
     },
-    async removeBook(id) {
-      localRemove(current().id, id);
+    async removeBook(id, shelfId) {
+      localRemove(current().id, id, shelfId);
     },
-    async books() {
-      return localBooks(current().id);
+    async books(shelfId) {
+      return localBooks(current().id, shelfId);
     },
   };
 }
@@ -761,9 +772,9 @@ function createResilientBackend(): Backend {
     createShelf: (name) => active.createShelf(name),
     renameShelf: (id, name) => active.renameShelf(id, name),
     deleteShelf: (id) => active.deleteShelf(id),
-    saveBook: (hit) => active.saveBook(hit),
-    removeBook: (id) => active.removeBook(id),
-    books: () => active.books(),
+    saveBook: (hit, shelfId) => active.saveBook(hit, shelfId),
+    removeBook: (id, shelfId) => active.removeBook(id, shelfId),
+    books: (shelfId) => active.books(shelfId),
   };
 }
 
