@@ -54,8 +54,14 @@ test("creating an account keeps the guest shelf, and another reader cannot see i
 
   await guest.signOut();
   assert.equal((await guest.books()).length, 0);
+  await guest.saveBook(hit("/works/OL3W", "Piranesi"));
   await guest.signIn("ada@example.com", "password1");
-  assert.equal((await guest.books())[0]?.title, "Beloved");
+  assert.deepEqual(
+    (await guest.books()).map((book) => book.title).sort(),
+    ["Beloved", "Piranesi"],
+  );
+  await guest.signOut();
+  assert.equal((await guest.books()).length, 0);
 
   await guest.signOut();
   await guest.register("ben@example.com", "password2", "Ben");
@@ -63,7 +69,7 @@ test("creating an account keeps the guest shelf, and another reader cannot see i
   assert.deepEqual((await guest.books()).map((book) => book.title), ["Piranesi"]);
   await guest.signOut();
   await guest.signIn("ada@example.com", "password1");
-  assert.deepEqual((await guest.books()).map((book) => book.title), ["Beloved"]);
+  assert.deepEqual((await guest.books()).map((book) => book.title).sort(), ["Beloved", "Piranesi"]);
 
   await assert.rejects(() => guest.signIn("ada@example.com", "wrong-password"), /did not match/);
   await guest.signIn("ada@example.com", "password1");

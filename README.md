@@ -4,7 +4,7 @@ A reading shelf. Search Open Library, then keep the cover, author, and year.
 
 Accounts and saved books use Firebase Authentication and Cloud Firestore. The public site is Firebase Hosting, the same kind of link as Study Deck and Puzzle Cube.
 
-A shelf can be kept without an account. It stays in this browser until its data is cleared. Creating an account keeps that same shelf.
+A shelf can be kept without an account. Those books stay in this browser. Registering or signing in moves them onto the account.
 
 ## Run it
 
@@ -21,15 +21,15 @@ Without that file the shelf still runs, and books stay in this browser.
 ## Share it
 
 1. Create a Firebase project and a web app. Set that project id in `.firebaserc`.
-2. In Authentication, enable Anonymous and Email/Password.
+2. In Authentication, enable Email/Password. This app does not use anonymous sign-in or a GitHub sign-in button.
 3. Create a Cloud Firestore database in production mode.
 4. Add this site’s domain to Authentication authorized domains. Firebase Hosting’s `web.app` domain is added for the project, and a custom domain needs to be added too.
 5. From this folder, after `npx firebase-tools login`:
 
 ```bash
-npm test
+npx firebase-tools deploy --only firestore:rules
 npm run build
-npx firebase-tools deploy --only firestore:rules,hosting
+npx firebase-tools deploy --only hosting
 ```
 
 The build writes the site to `out/`. The public address is `https://YOUR_PROJECT_ID.web.app`.

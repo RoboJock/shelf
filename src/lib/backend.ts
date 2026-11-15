@@ -1,11 +1,8 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import {
-  EmailAuthProvider,
   createUserWithEmailAndPassword,
   getAuth,
-  linkWithCredential,
   onAuthStateChanged,
-  signInAnonymously,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
@@ -124,44 +121,47 @@ function bookPayload(user: User, hit: LibraryHit, savedAt: number) {
   };
 }
 
+async function adoptGuestBooks(user: User): Promise<void> {
+  const { db: database } = services();
+  const pending = takeGuestBooks();
+  try {
+    const name = user.displayName?.trim() || "Reader";
+    if (pending.length > 0) await remember(user, name);
+    for (const book of pending) {
+      await setDoc(doc(database, "users", user.uid, "books", bookDocId(book.id)), {
+        workKey: book.id,
+        title: book.title,
+        author: book.author,
+        year: book.year,
+        coverId: book.coverId,
+        savedAt: book.savedAt,
+        uid: user.uid,
+      });
+    }
+  } catch (error) {
+    restoreGuestBooks(pending);
+    throw error;
+  }
+}
+
 export function createFirebaseBackend(): Backend {
   return {
     mode: "firebase",
     subscribe(listener) {
       const { auth: current } = services();
-      let stop = false;
-      const unsub = onAuthStateChanged(current, (user) => {
-        if (stop) return;
-        if (user) {
-          listener(asUser(user));
-          return;
-        }
-        signInAnonymously(current).catch((error: unknown) => {
-          console.error(friendly(error).message);
-          listener(null);
-        });
+      return onAuthStateChanged(current, (user) => {
+        listener(user ? asUser(user) : guestAccount());
       });
-      return () => {
-        stop = true;
-        unsub();
-      };
     },
     async register(email, password, name) {
       try {
         const { auth: current } = services();
         const display = cleanName(name);
         if (password.length < 8) throw new Error("Use at least 8 characters.");
-        const user = current.currentUser;
-        if (user?.isAnonymous) {
-          const credential = EmailAuthProvider.credential(email.trim(), password);
-          const linked = await linkWithCredential(user, credential);
-          await updateProfile(linked.user, { displayName: display });
-          await remember(linked.user, display);
-          return;
-        }
         const created = await createUserWithEmailAndPassword(current, email.trim(), password);
         await updateProfile(created.user, { displayName: display });
         await remember(created.user, display);
+        await adoptGuestBooks(created.user);
       } catch (error) {
         throw friendly(error);
       }
@@ -170,7 +170,9 @@ export function createFirebaseBackend(): Backend {
       try {
         const { auth: current } = services();
         const signed = await signInWithEmailAndPassword(current, email.trim(), password);
-        if (signed.user.displayName) await remember(signed.user, signed.user.displayName);
+        const name = signed.user.displayName?.trim() || "Reader";
+        if (signed.user.displayName) await remember(signed.user, name);
+        await adoptGuestBooks(signed.user);
       } catch (error) {
         throw friendly(error);
       }
@@ -179,30 +181,36 @@ export function createFirebaseBackend(): Backend {
       try {
         const { auth: current } = services();
         await signOut(current);
-        await signInAnonymously(current);
       } catch (error) {
         throw friendly(error);
       }
     },
     async saveBook(hit) {
-      const { auth: current, db: database } = services();
+      const { auth: current } = services();
       const user = current.currentUser;
-      if (!user) throw new Error("The guest session is not ready yet.");
+      if (!user) {
+        saveGuestBook(hit);
+        return;
+      }
       if (!hit.id.startsWith("/works/") || !hit.title.trim()) throw new Error("That book could not be saved.");
-      const name = user.displayName?.trim() || (user.isAnonymous ? "Guest" : "Reader");
-      await setDoc(doc(database, "users", user.uid), { name, guest: user.isAnonymous, updatedAt: serverTimestamp() }, { merge: true });
+      const { db: database } = services();
+      const name = user.displayName?.trim() || "Reader";
+      await setDoc(doc(database, "users", user.uid), { name, guest: false, updatedAt: serverTimestamp() }, { merge: true });
       await setDoc(doc(database, "users", user.uid, "books", bookDocId(hit.id)), bookPayload(user, hit, Date.now()));
     },
     async removeBook(id) {
       const { auth: current, db: database } = services();
       const user = current.currentUser;
-      if (!user) throw new Error("The guest session is not ready yet.");
+      if (!user) {
+        removeGuestBook(id);
+        return;
+      }
       await deleteDoc(doc(database, "users", user.uid, "books", bookDocId(id)));
     },
     async books() {
       const { auth: current, db: database } = services();
       const user = current.currentUser;
-      if (!user) return [];
+      if (!user) return guestBooks();
       const snap = await getDocs(query(collection(database, "users", user.uid, "books"), orderBy("savedAt", "desc")));
       return snap.docs.flatMap((item) => {
         const book = readBook(item.id, item.data());
@@ -260,6 +268,70 @@ function ensureGuest(state: LocalState): LocalState {
   return state;
 }
 
+function guestAccount(): AppUser {
+  const state = ensureGuest(readLocal());
+  return { id: state.guestId, name: "Guest", email: "", guest: true, provider: "guest" };
+}
+
+function guestBooks(): ShelfBook[] {
+  const state = ensureGuest(readLocal());
+  return state.books
+    .filter((book) => book.owner === state.guestId)
+    .sort((a, b) => b.savedAt - a.savedAt);
+}
+
+function saveGuestBook(hit: LibraryHit) {
+  if (!hit.id.startsWith("/works/") || !hit.title.trim()) throw new Error("That book could not be saved.");
+  const state = ensureGuest(readLocal());
+  if (state.books.some((book) => book.owner === state.guestId && book.id === hit.id)) return;
+  state.books.push({
+    id: hit.id,
+    owner: state.guestId,
+    title: hit.title.slice(0, 300),
+    author: (hit.author || "Unknown").slice(0, 200),
+    year: hit.year,
+    coverId: hit.coverId,
+    savedAt: Date.now(),
+  });
+  writeLocal(state);
+}
+
+function removeGuestBook(id: string) {
+  const state = ensureGuest(readLocal());
+  state.books = state.books.filter((book) => !(book.owner === state.guestId && book.id === id));
+  writeLocal(state);
+}
+
+function takeGuestBooks(): ShelfBook[] {
+  const state = ensureGuest(readLocal());
+  const taken = state.books.filter((book) => book.owner === state.guestId);
+  state.books = state.books.filter((book) => book.owner !== state.guestId);
+  writeLocal(state);
+  return taken.map(({ owner: _owner, ...book }) => book);
+}
+
+function restoreGuestBooks(books: ShelfBook[]) {
+  const state = ensureGuest(readLocal());
+  for (const book of books) {
+    if (state.books.some((item) => item.owner === state.guestId && item.id === book.id)) continue;
+    state.books.push({ ...book, owner: state.guestId });
+  }
+  writeLocal(state);
+}
+
+function claimGuestBooks(accountId: string) {
+  const state = ensureGuest(readLocal());
+  if (state.guestId === accountId) return;
+  const seen = new Set(state.books.filter((book) => book.owner === accountId).map((book) => book.id));
+  for (const book of state.books) {
+    if (book.owner !== state.guestId || seen.has(book.id)) continue;
+    book.owner = accountId;
+    seen.add(book.id);
+  }
+  state.books = state.books.filter((book) => book.owner !== state.guestId);
+  writeLocal(state);
+}
+
 async function digest(salt: string, password: string): Promise<string> {
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${salt}:${password}`));
   return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -298,13 +370,9 @@ export function createLocalBackend(): Backend {
       const salt = crypto.randomUUID();
       const id = crypto.randomUUID();
       state.users.push({ id, email: email.trim(), name: display, salt, hash: await digest(salt, password) });
-      if (me.guest) {
-        state.books.forEach((book) => {
-          if (book.owner === me.id) book.owner = id;
-        });
-      }
       state.session = id;
       writeLocal(state);
+      if (me.guest) claimGuestBooks(id);
       emit();
     },
     async signIn(email, password) {
@@ -315,6 +383,7 @@ export function createLocalBackend(): Backend {
       }
       state.session = account.id;
       writeLocal(state);
+      claimGuestBooks(account.id);
       emit();
     },
     async signOut() {

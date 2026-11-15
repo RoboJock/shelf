@@ -4,6 +4,9 @@ service cloud.firestore {
     function signedIn() {
       return request.auth != null;
     }
+    function owns(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
     function nameOk(value) {
       return value is string && value.size() >= 2 && value.size() <= 24;
     }
@@ -18,17 +21,16 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if signedIn() && request.auth.uid == userId;
-      allow create, update: if signedIn()
-        && request.auth.uid == userId
+      allow read: if owns(userId);
+      allow create, update: if owns(userId)
         && nameOk(request.resource.data.name)
-        && request.resource.data.guest is bool;
+        && request.resource.data.guest == false;
       allow delete: if false;
 
       match /books/{bookId} {
-        allow read: if signedIn() && request.auth.uid == userId;
-        allow create, update: if signedIn() && request.auth.uid == userId && bookOk(request.resource.data);
-        allow delete: if signedIn() && request.auth.uid == userId;
+        allow read: if owns(userId);
+        allow create, update: if owns(userId) && bookOk(request.resource.data);
+        allow delete: if owns(userId);
       }
     }
   }
