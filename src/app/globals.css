@@ -178,8 +178,9 @@ h1 {
   gap: 12px;
   max-width: 760px;
 }
+.search-field { position: relative; flex: 1; min-width: 0; }
 .search input {
-  flex: 1;
+  width: 100%;
   height: 58px;
   border: 1px solid var(--field-line);
   background: var(--field);
@@ -187,6 +188,53 @@ h1 {
   padding: 0 18px;
   font-size: 18px;
   text-align: left;
+}
+.suggest {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 4;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.suggest-label {
+  padding: 6px 10px 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.search .suggest button {
+  width: 100%;
+  height: auto;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  display: grid;
+  gap: 2px;
+}
+.search .suggest button:hover,
+.search .suggest button:focus-visible { background: var(--cover); }
+.search .suggest button span {
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.25;
+}
+.search .suggest button small {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
 }
 .search input::placeholder { color: var(--placeholder); }
 .search button, .text-button, .account button, .hit button {
