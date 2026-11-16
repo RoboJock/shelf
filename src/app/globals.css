@@ -100,10 +100,19 @@ nav {
   position: relative;
   margin-top: 36px;
 }
+.workspace::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+  left: min(calc(clamp(-64px, 50% - 582px, 0px) + 102px), calc((100% - min(820px, 100%)) / 2 - 16px));
+}
 .rail {
   position: absolute;
   top: 8px;
-  width: 132px;
+  width: 88px;
   left: clamp(-64px, calc(50% - 582px), 0px);
   text-align: left;
 }
@@ -158,19 +167,9 @@ nav {
 }
 .rail-status { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
 .desk {
-  position: relative;
   width: min(820px, 100%);
   margin: 0 auto;
   text-align: center;
-}
-.desk::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--line);
 }
 
 h1 {
@@ -655,7 +654,7 @@ h1 {
 
 @media (max-width: 1120px) {
   .rail { position: static; width: auto; margin-bottom: 8px; }
-  .desk::before { content: none; }
+  .workspace::before { content: none; }
   .rail ul { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 }
 @media (max-width: 800px) {
