@@ -1,15 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import { coverUrl, type LibraryHit } from "../lib/books";
+import { useEffect, useState } from "react";
+import { coverUrl, type BookDetails, type LibraryHit } from "../lib/books";
 import type { BookShelf } from "../lib/backend";
+import { enrichBooks } from "../lib/google-books";
 import { useShelf } from "./AppShell";
 
-export function Cover({ book }: { book: { title: string; coverId: number | null } }) {
-  const src = coverUrl(book.coverId);
-  const [failed, setFailed] = useState(false);
-  if (!src || failed) return <div className="cover-fallback">{book.title}</div>;
-  return <img className="cover" src={src} alt="" onError={() => setFailed(true)} />;
+export function Cover({ book }: { book: { title: string; coverId: number | null; image?: string | null } }) {
+  const primary = coverUrl(book.coverId);
+  const backup = coverUrl(null, book.image);
+  const preferred = primary || backup;
+  const [src, setSrc] = useState(preferred);
+  useEffect(() => {
+    setSrc(preferred);
+  }, [preferred]);
+  if (!src) return <div className="cover-fallback">{book.title}</div>;
+  return <img className="cover" src={src} alt="" onError={() => setSrc(src === primary ? backup : null)} />;
+}
+
+export function BookFacts({ book }: { book: BookDetails }) {
+  const meta = [book.pages ? `${book.pages} pages` : "", book.publisher ?? "", book.categories ?? ""].filter(Boolean);
+  if (!book.description && meta.length === 0) return null;
+  return (
+    <>
+      {book.description ? <p className="blurb">{book.description}</p> : null}
+      {meta.length > 0 ? <p className="meta">{meta.join(" · ")}</p> : null}
+    </>
+  );
 }
 
 export function HitSection({
@@ -38,6 +55,7 @@ export function HitSection({
               <Cover book={hit} />
               <h3>{hit.title}</h3>
               <p>{hit.author}{hit.year ? ` · ${hit.year}` : ""}</p>
+              <BookFacts book={hit} />
               <button type="button" onClick={() => setPicking(hit)}>Save</button>
             </article>
           ))}
@@ -56,7 +74,8 @@ function ShelfPicker({ hit, onClose }: { hit: LibraryHit; onClose: () => void })
   async function saveTo(shelf: BookShelf) {
     setStatus("");
     try {
-      await backend.saveBook(hit, shelf.id);
+      const [full] = await enrichBooks([hit]);
+      await backend.saveBook(full ?? hit, shelf.id);
       refreshShelves();
       onClose();
     } catch (error) {
@@ -79,7 +98,8 @@ function ShelfPicker({ hit, onClose }: { hit: LibraryHit; onClose: () => void })
             event.preventDefault();
             setStatus("");
             void backend.createShelf(draft).then(async (shelf) => {
-              await backend.saveBook(hit, shelf.id);
+              const [full] = await enrichBooks([hit]);
+              await backend.saveBook(full ?? hit, shelf.id);
               setDraft("");
               refreshShelves();
               onClose();

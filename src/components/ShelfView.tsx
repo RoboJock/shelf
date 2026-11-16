@@ -3,8 +3,9 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { shelfOrders, sortShelf, type ShelfBook, type ShelfOrder } from "../lib/books";
+import { enrichBooks } from "../lib/google-books";
 import { useShelf } from "./AppShell";
-import { Chevron, Cover } from "./library";
+import { BookFacts, Chevron, Cover } from "./library";
 
 export function ShelfView() {
   const { backend, shelves, shelvesReady, refreshShelves } = useShelf();
@@ -26,7 +27,11 @@ export function ShelfView() {
     if (!id) return;
     let cancel = false;
     backend.books(id).then((next) => {
-      if (!cancel) setBooks(next);
+      if (cancel) return;
+      setBooks(next);
+      void enrichBooks(next).then((richer) => {
+        if (!cancel) setBooks(richer);
+      });
     }).catch((error: unknown) => {
       if (!cancel) setStatus(error instanceof Error ? error.message : "Could not load this shelf.");
     });
@@ -157,7 +162,8 @@ export function ShelfView() {
             <article key={book.id} className="book">
               <Cover book={book} />
               <h3>{book.title}</h3>
-              <p>{book.author}</p>
+              <p>{book.author}{book.year ? ` · ${book.year}` : ""}</p>
+              <BookFacts book={book} />
               <button
                 type="button"
                 className="quiet"

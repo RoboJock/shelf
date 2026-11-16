@@ -17,7 +17,12 @@ service cloud.firestore {
         && (data.year == null || (data.year is int && data.year >= 0 && data.year <= 2100))
         && (data.coverId == null || (data.coverId is int && data.coverId > 0))
         && data.savedAt is int && data.savedAt > 0
-        && data.uid == request.auth.uid;
+        && data.uid == request.auth.uid
+        && (!("description" in data) || data.description == null || (data.description is string && data.description.size() <= 480))
+        && (!("pages" in data) || data.pages == null || (data.pages is int && data.pages > 0 && data.pages <= 20000))
+        && (!("publisher" in data) || data.publisher == null || (data.publisher is string && data.publisher.size() <= 120))
+        && (!("categories" in data) || data.categories == null || (data.categories is string && data.categories.size() <= 80))
+        && (!("image" in data) || data.image == null || (data.image is string && data.image.size() <= 300));
     }
 
     match /users/{userId} {

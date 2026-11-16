@@ -171,6 +171,11 @@ function bookPayload(user: User, hit: LibraryHit, savedAt: number) {
     author: (hit.author || "Unknown").slice(0, 200),
     year: hit.year,
     coverId: hit.coverId,
+    description: hit.description ?? null,
+    pages: hit.pages ?? null,
+    publisher: hit.publisher ?? null,
+    categories: hit.categories ?? null,
+    image: hit.image ?? null,
     savedAt,
     uid: user.uid,
   };
@@ -587,6 +592,11 @@ function localSave(owner: string, hit: LibraryHit, shelfId?: string) {
     author: (hit.author || "Unknown").slice(0, 200),
     year: hit.year,
     coverId: hit.coverId,
+    description: hit.description ?? null,
+    pages: hit.pages ?? null,
+    publisher: hit.publisher ?? null,
+    categories: hit.categories ?? null,
+    image: hit.image ?? null,
     savedAt: Date.now(),
   });
   writeLocal(state);

@@ -1,4 +1,12 @@
-export interface ShelfBook {
+export interface BookDetails {
+  description?: string | null;
+  pages?: number | null;
+  publisher?: string | null;
+  categories?: string | null;
+  image?: string | null;
+}
+
+export interface ShelfBook extends BookDetails {
   id: string;
   title: string;
   author: string;
@@ -7,7 +15,7 @@ export interface ShelfBook {
   savedAt: number;
 }
 
-export interface LibraryHit {
+export interface LibraryHit extends BookDetails {
   id: string;
   title: string;
   author: string;
@@ -38,9 +46,12 @@ export function sortShelf(books: ShelfBook[], order: ShelfOrder): ShelfBook[] {
   });
 }
 
-export function coverUrl(coverId: number | null): string | null {
-  if (coverId === null || !Number.isInteger(coverId) || coverId <= 0) return null;
-  return `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
+export function coverUrl(coverId: number | null, image?: string | null): string | null {
+  if (coverId !== null && Number.isInteger(coverId) && coverId > 0) {
+    return `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;
+  }
+  if (image && /^https:\/\/books\.google(?:usercontent)?\.com\//.test(image)) return image;
+  return null;
 }
 
 export function bookDocId(workKey: string): string {
@@ -99,5 +110,10 @@ export function readBook(id: string, data: Record<string, unknown>): ShelfBook |
     year: yearOf(data.year),
     coverId: coverOf(data.coverId),
     savedAt: typeof data.savedAt === "number" && data.savedAt > 0 ? data.savedAt : Date.now(),
+    description: text(data.description, 480) || null,
+    pages: typeof data.pages === "number" && Number.isInteger(data.pages) && data.pages > 0 && data.pages <= 20000 ? data.pages : null,
+    publisher: text(data.publisher, 120) || null,
+    categories: text(data.categories, 80) || null,
+    image: typeof data.image === "string" && /^https:\/\/books\.google(?:usercontent)?\.com\//.test(data.image) ? data.image.slice(0, 300) : null,
   };
 }

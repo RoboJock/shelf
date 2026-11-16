@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { LibraryHit } from "../lib/books";
+import { enrichBooks } from "../lib/google-books";
 import { findBooks } from "../lib/search";
 import { HitSection } from "./library";
 import { SearchBox } from "./SearchBox";
@@ -28,6 +29,9 @@ export function SearchResults() {
       setHits(result.hits);
       setClose(result.close);
       if (result.hits.length === 0) setStatus("No books matched that search.");
+      void enrichBooks(result.hits).then((richer) => {
+        if (!cancel) setHits(richer);
+      });
     }).catch((error: unknown) => {
       if (cancel) return;
       setHits([]);
