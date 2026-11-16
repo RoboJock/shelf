@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { shelfOrders, sortShelf, type ShelfBook, type ShelfOrder } from "../lib/books";
 import { enrichBooks } from "../lib/google-books";
 import { useShelf } from "./AppShell";
 import { BookFacts, Chevron, Cover } from "./library";
+import { bookHref } from "../lib/details";
 
 export function ShelfView() {
   const { backend, shelves, shelvesReady, refreshShelves } = useShelf();
@@ -160,8 +162,8 @@ export function ShelfView() {
         <div className="books">
           {ordered.map((book) => (
             <article key={book.id} className="book">
-              <Cover book={book} />
-              <h3>{book.title}</h3>
+              <Link href={bookHref(book.id, book.coverId)} className="book-link" aria-label={book.title}><Cover book={book} /></Link>
+              <h3><Link href={bookHref(book.id, book.coverId)}>{book.title}</Link></h3>
               <p>{book.author}{book.year ? ` · ${book.year}` : ""}</p>
               <BookFacts book={book} />
               <button

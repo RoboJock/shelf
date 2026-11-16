@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { coverUrl, resultOrders, sortResults, type BookDetails, type LibraryHit, type ResultOrder } from "../lib/books";
 import type { BookShelf } from "../lib/backend";
 import { enrichBooks } from "../lib/google-books";
 import { useShelf } from "./AppShell";
+import { bookHref } from "../lib/details";
 
 export function Cover({ book }: { book: { title: string; coverId: number | null; image?: string | null } }) {
   const primary = coverUrl(book.coverId);
@@ -110,8 +112,8 @@ export function HitSection({
         <div className="books">
           {shown.map((hit) => (
             <article key={hit.id} className="book hit">
-              <Cover book={hit} />
-              <h3>{hit.title}</h3>
+              <Link href={bookHref(hit.id, hit.coverId)} className="book-link" aria-label={hit.title}><Cover book={hit} /></Link>
+              <h3><Link href={bookHref(hit.id, hit.coverId)}>{hit.title}</Link></h3>
               <p>{hit.author}{hit.year ? ` · ${hit.year}` : ""}</p>
               <BookFacts book={hit} />
               <button type="button" onClick={() => setPicking(hit)}>Save</button>

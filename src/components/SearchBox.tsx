@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { LibraryHit } from "../lib/books";
 import { findBooks } from "../lib/search";
+import { bookHref } from "../lib/details";
 
 export function SearchBox({ initial = "" }: { initial?: string }) {
   const router = useRouter();
@@ -97,7 +98,7 @@ export function SearchBox({ initial = "" }: { initial?: string }) {
             {close ? <li className="suggest-label">Close matches</li> : null}
             {preview.map((hit) => (
               <li key={hit.id} role="none">
-                <button type="button" role="option" onClick={() => go(hit.title)}>
+                <button type="button" role="option" onClick={() => router.push(bookHref(hit.id, hit.coverId))}>
                   <span>{hit.title}</span>
                   <small>{hit.author}{hit.year ? ` · ${hit.year}` : ""}</small>
                 </button>
