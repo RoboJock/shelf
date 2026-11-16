@@ -32,6 +32,7 @@ export interface BookPageInfo {
   reading: BookLink[];
   genre: string | null;
   suggestions: RelatedBook[];
+  authorBooks: RelatedBook[];
 }
 
 export function bookHref(id: string, coverId?: number | null): string {
@@ -423,11 +424,13 @@ export async function loadBookPage(workKey: string, signal?: AbortSignal, fetchI
   if (!work) return null;
   const genre = chooseGenre(work.subjectNames);
   const seriesId = work.seriesKey?.split("/").pop() ?? "";
-  const [authorPayload, seriesPayload, seriesSearch, suggestionSearch, editionsPayload, popularPayload] = await Promise.all([
+  const authorId = work.authorKey?.split("/").pop() ?? "";
+  const [authorPayload, seriesPayload, seriesSearch, suggestionSearch, authorSearch, editionsPayload, popularPayload] = await Promise.all([
     work.authorKey ? getJson(`https://openlibrary.org${work.authorKey}.json`, fetchImpl, signal) : Promise.resolve(null),
     work.seriesKey ? getJson(`https://openlibrary.org${work.seriesKey}.json`, fetchImpl, signal) : Promise.resolve(null),
     seriesId ? getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ q: `series_key:${seriesId}`, limit: "12", fields: "key,title,author_name,cover_i,first_publish_year" })}`, fetchImpl, signal) : Promise.resolve(null),
     genre ? getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ subject: genre, limit: "12", fields: "key,title,author_name,cover_i,first_publish_year" })}`, fetchImpl, signal) : Promise.resolve(null),
+    authorId ? getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ q: `author_key:${authorId}`, language: "eng", limit: "12", fields: "key,title,author_name,cover_i,first_publish_year" })}`, fetchImpl, signal) : Promise.resolve(null),
     getJson(`https://openlibrary.org${workKey}/editions.json?${new URLSearchParams({ limit: "50" })}`, fetchImpl, signal),
     getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ q: `key:${workKey}`, fields: "key,isbn", limit: "1" })}`, fetchImpl, signal),
   ]);
@@ -466,6 +469,8 @@ export async function loadBookPage(workKey: string, signal?: AbortSignal, fetchI
   }));
   const ordered = orderSeries(seriesBooks.filter((item): item is RelatedBook => Boolean(item)));
   const seriesIds = new Set(ordered.map((item) => item.id));
+  const authorBooks = moreByAuthor(authorSearch, author, new Set([workKey, ...seriesIds]), new Set([work.title, ...ordered.map((item) => item.title)]));
+  const authorIds = new Set(authorBooks.map((item) => item.id));
   const series = seriesName ? {
     name: seriesName,
     position: work.position,
@@ -485,8 +490,24 @@ export async function loadBookPage(workKey: string, signal?: AbortSignal, fetchI
     series,
     reading: dedupe([{ label: "Open Library", href: `https://openlibrary.org${workKey}` }, ...work.links]),
     genre,
-    suggestions: readRelated(suggestionSearch).filter((item) => item.id !== workKey && !seriesIds.has(item.id)).slice(0, 6),
+    suggestions: readRelated(suggestionSearch).filter((item) => item.id !== workKey && !seriesIds.has(item.id) && !authorIds.has(item.id)).slice(0, 6),
+    authorBooks,
   };
+}
+
+function moreByAuthor(payload: unknown, author: string, skipIds: Set<string>, skipTitles: Set<string>): RelatedBook[] {
+  const wanted = author.trim().toLowerCase();
+  if (!wanted || wanted === "unknown") return [];
+  const skipped = new Set([...skipTitles].map((title) => plainTitle(title)));
+  const books: RelatedBook[] = [];
+  for (const book of readRelated(payload, 12)) {
+    if (book.author.trim().toLowerCase() !== wanted || skipIds.has(book.id)) continue;
+    const title = plainTitle(book.title);
+    if (!title || skipped.has(title) || books.some((item) => plainTitle(item.title) === title)) continue;
+    books.push(book);
+    if (books.length >= 6) break;
+  }
+  return books;
 }
 
 async function offers(title: string, author: string, signal: AbortSignal | undefined, fetchImpl: typeof fetch): Promise<unknown | null> {

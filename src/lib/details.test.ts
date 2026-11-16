@@ -99,6 +99,12 @@ test("a book page keeps the catalog summary and adds purchase and series links",
     ] });
     if (url.includes("/works/OL2W")) return json({ title: "The Fellowship of the Ring", series: [{ series: { key: "/series/OL1L" }, position: "1" }] });
     if (url.includes("/works/OL3W")) return json({ title: "The Two Towers", series: [{ series: { key: "/series/OL1L" }, position: "2" }] });
+    if (url.includes("author_key")) return json({ docs: [
+      { key: "/works/OL1W", title: "The Lord of the Rings", author_name: ["J. R. R. Tolkien"], cover_i: 99, first_publish_year: 1954 },
+      { key: "/works/OL2W", title: "The Fellowship of the Ring", author_name: ["J. R. R. Tolkien"], cover_i: 2, first_publish_year: 1954 },
+      { key: "/works/OL8W", title: "The Hobbit", author_name: ["J. R. R. Tolkien"], cover_i: 8, first_publish_year: 1937 },
+      { key: "/works/OL7W", title: "The Silmarillion", author_name: ["J. R. R. Tolkien"], cover_i: 7, first_publish_year: 1977 },
+    ] });
     if (url.includes("subject=")) return json({ docs: [
       { key: "/works/OL1W", title: "The Lord of the Rings", author_name: ["J. R. R. Tolkien"], cover_i: 99, first_publish_year: 1954 },
       { key: "/works/OL2W", title: "The Fellowship of the Ring", author_name: ["J. R. R. Tolkien"], cover_i: 2, first_publish_year: 1954 },
@@ -127,7 +133,8 @@ test("a book page keeps the catalog summary and adds purchase and series links",
     assert.deepEqual(page?.series?.books.map((item) => item.title), ["The Fellowship of the Ring", "The Two Towers"]);
     assert.deepEqual(page?.series?.books.map((item) => item.position), ["1", "2"]);
     assert.equal(page?.genre, "fantasy");
-    assert.deepEqual(page?.suggestions.map((item) => item.title), ["The Hobbit"]);
+    assert.deepEqual(page?.authorBooks.map((item) => item.title), ["The Hobbit", "The Silmarillion"]);
+    assert.deepEqual(page?.suggestions.map((item) => item.title), []);
     assert.equal(page?.authorLinks.some((link) => link.href.endsWith("/J._R._R._Tolkien")), true);
     assert.equal(page?.reading.some((link) => link.href.endsWith("/The_Lord_of_the_Rings")), true);
     assert.equal(calls.some((url) => url.includes("key=test-key")), true);

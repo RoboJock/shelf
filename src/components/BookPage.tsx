@@ -57,6 +57,12 @@ export function BookPage() {
         <RelatedBooks books={page.series.books} />
       </section>
     ) : null}
+    {page.authorBooks.length > 0 ? (
+      <section className="related" aria-label={`More by ${book.author}`}>
+        <h2>More by {book.author}</h2>
+        <RelatedBooks books={page.authorBooks} />
+      </section>
+    ) : null}
     {page.suggestions.length > 0 ? (
       <section className="related">
         <h2>More {page.genre}</h2>
