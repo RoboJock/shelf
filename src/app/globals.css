@@ -193,19 +193,29 @@ h1 {
   font-size: 18px;
   text-align: left;
 }
+.search input:focus { outline: none; border-color: var(--ink); }
+.search-field.open { z-index: 5; }
+.search-field.open input {
+  border-color: var(--ink);
+  border-bottom-color: transparent;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
 .suggest {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% - 1px);
   left: 0;
   right: 0;
-  z-index: 4;
+  z-index: 5;
   margin: 0;
-  padding: 6px;
+  padding: 4px 6px 6px;
   list-style: none;
   text-align: left;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  background: var(--field);
+  border: 1px solid var(--ink);
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 14px 28px rgba(36, 28, 22, 0.12);
 }
 .suggest-label {
   padding: 6px 10px 2px;

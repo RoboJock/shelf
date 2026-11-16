@@ -27,7 +27,12 @@ export function SearchBox({ initial = "" }: { initial?: string }) {
     }
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      findBooks(typed, 5, controller.signal).then((result) => {
+      findBooks(typed, 5, controller.signal, fetch, (result) => {
+        if (result.hits.length === 0) return;
+        setPreview(result.hits);
+        setClose(result.close);
+        setOpen(true);
+      }).then((result) => {
         setPreview(result.hits);
         setClose(result.close);
         setOpen(result.hits.length > 0);
@@ -36,7 +41,7 @@ export function SearchBox({ initial = "" }: { initial?: string }) {
         setPreview([]);
         setOpen(false);
       });
-    }, 300);
+    }, 80);
     return () => {
       clearTimeout(timer);
       controller.abort();
@@ -74,7 +79,7 @@ export function SearchBox({ initial = "" }: { initial?: string }) {
         go(query);
       }}
     >
-      <div className="search-field" ref={field}>
+      <div className={open ? "search-field open" : "search-field"} ref={field}>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}

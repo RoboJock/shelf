@@ -24,7 +24,12 @@ export function SearchResults() {
     let cancel = false;
     setStatus("");
     setHits(null);
-    findBooks(submitted, 12).then((result) => {
+    findBooks(submitted, 12, undefined, fetch, (result) => {
+      if (cancel || result.hits.length === 0) return;
+      setHits(result.hits);
+      setClose(result.close);
+      setStatus("");
+    }).then((result) => {
       if (cancel) return;
       setHits(result.hits);
       setClose(result.close);

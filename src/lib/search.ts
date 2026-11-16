@@ -128,20 +128,29 @@ async function libraryHits(query: string, limit: number, signal: AbortSignal | u
   return readSearch(await response.json(), limit);
 }
 
-export async function findBooks(query: string, limit: number, signal?: AbortSignal, fetchImpl: typeof fetch = fetch): Promise<{ hits: LibraryHit[]; close: boolean }> {
+export async function findBooks(
+  query: string,
+  limit: number,
+  signal?: AbortSignal,
+  fetchImpl: typeof fetch = fetch,
+  notify?: (result: { hits: LibraryHit[]; close: boolean }) => void,
+): Promise<{ hits: LibraryHit[]; close: boolean }> {
   const typed = query.trim();
   if (!typed) return { hits: [], close: false };
   const direct = await libraryHits(typed, limit, signal, fetchImpl);
+  const rankedDirect = rankHits(typed, direct).slice(0, limit);
+  const spelled = rankedDirect.length > 0 && !keepsTypedWords(typed, direct);
+  const preliminary = { hits: rankedDirect, close: spelled };
+  notify?.(preliminary);
   const phrases = nearQueries(typed);
+  if (phrases.length === 0 || (rankedDirect.length > 0 && !spelled)) return preliminary;
   let extra: LibraryHit[] = [];
-  if (phrases.length > 0) {
-    const clause = phrases.map((phrase) => phrase.includes(" ") ? `(${phrase.split(" ").join(" AND ")})` : phrase).join(" OR ");
-    try {
-      extra = await libraryHits(clause, limit, signal, fetchImpl);
-    } catch (error) {
-      if (signal?.aborted) throw error;
-      extra = [];
-    }
+  const clause = phrases.map((phrase) => phrase.includes(" ") ? `(${phrase.split(" ").join(" AND ")})` : phrase).join(" OR ");
+  try {
+    extra = await libraryHits(clause, limit, signal, fetchImpl);
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    return preliminary;
   }
   const seen = new Set<string>();
   const merged = [...direct, ...extra].filter((hit) => {
@@ -150,5 +159,7 @@ export async function findBooks(query: string, limit: number, signal?: AbortSign
     return matchScore(typed, hit) >= 0.55;
   });
   const hits = rankHits(typed, merged.length > 0 ? merged : direct).slice(0, limit);
-  return { hits, close: hits.length > 0 && !keepsTypedWords(typed, direct) };
+  const result = { hits, close: hits.length > 0 && !keepsTypedWords(typed, direct) };
+  notify?.(result);
+  return result;
 }

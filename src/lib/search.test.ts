@@ -22,6 +22,20 @@ test("close titles rank ahead of unrelated books", () => {
   assert.equal(keepsTypedWords("piranesi", [hits[1]]), true);
 });
 
+test("a matching title does not wait on a second spelling search", async () => {
+  let calls = 0;
+  const fetchImpl: typeof fetch = async () => {
+    calls += 1;
+    return new Response(JSON.stringify({
+      docs: [{ key: "/works/OL1W", title: "Circe", author_name: ["Madeline Miller"], cover_i: 1, first_publish_year: 2018 }],
+    }), { status: 200 });
+  };
+  const result = await findBooks("circe", 6, undefined, fetchImpl);
+  assert.equal(calls, 1);
+  assert.equal(result.close, false);
+  assert.equal(result.hits[0]?.title, "Circe");
+});
+
 test("findBooks merges a close spelling when the typed query misses", async () => {
   const fetchImpl: typeof fetch = async (input) => {
     const url = String(input);
