@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { LibraryHit } from "../lib/books";
+import type { LibraryHit, ResultOrder } from "../lib/books";
 import { enrichBooks } from "../lib/google-books";
 import { findBooks } from "../lib/search";
 import { HitSection } from "./library";
@@ -14,6 +14,7 @@ export function SearchResults() {
   const [hits, setHits] = useState<LibraryHit[] | null>(null);
   const [close, setClose] = useState(false);
   const [status, setStatus] = useState("");
+  const [order, setOrder] = useState<ResultOrder>("relevance");
 
   useEffect(() => {
     if (!submitted) {
@@ -58,6 +59,8 @@ export function SearchResults() {
           title={close ? "Close matches" : "Open Library"}
           hits={hits}
           empty="Try another title or author."
+          order={order}
+          onOrder={setOrder}
         />
       ) : submitted ? <p className="status">Searching…</p> : null}
     </>

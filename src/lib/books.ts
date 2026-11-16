@@ -46,6 +46,40 @@ export function sortShelf(books: ShelfBook[], order: ShelfOrder): ShelfBook[] {
   });
 }
 
+export type ResultOrder = "relevance" | "title" | "title-desc" | "author" | "author-desc" | "year" | "year-desc";
+
+export const resultOrders: { id: ResultOrder; label: string }[] = [
+  { id: "relevance", label: "Relevance" },
+  { id: "title", label: "Title A–Z" },
+  { id: "title-desc", label: "Title Z–A" },
+  { id: "author", label: "Author A–Z" },
+  { id: "author-desc", label: "Author Z–A" },
+  { id: "year", label: "Year newest" },
+  { id: "year-desc", label: "Year oldest" },
+];
+
+export function sortResults(hits: LibraryHit[], order: ResultOrder): LibraryHit[] {
+  if (order === "relevance") return hits;
+  const byTitle = (a: LibraryHit, b: LibraryHit) =>
+    a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
+    || a.author.localeCompare(b.author, undefined, { sensitivity: "base" });
+  const byAuthor = (a: LibraryHit, b: LibraryHit) =>
+    a.author.localeCompare(b.author, undefined, { sensitivity: "base" }) || byTitle(a, b);
+  const byYear = (a: LibraryHit, b: LibraryHit, newest: boolean) => {
+    if (a.year == null && b.year == null) return byTitle(a, b);
+    if (a.year == null) return 1;
+    if (b.year == null) return -1;
+    return newest ? b.year - a.year || byTitle(a, b) : a.year - b.year || byTitle(a, b);
+  };
+  return [...hits].sort((a, b) => {
+    if (order === "title") return byTitle(a, b);
+    if (order === "title-desc") return byTitle(b, a);
+    if (order === "author") return byAuthor(a, b);
+    if (order === "author-desc") return byAuthor(b, a);
+    return byYear(a, b, order === "year");
+  });
+}
+
 export function coverUrl(coverId: number | null, image?: string | null): string | null {
   if (coverId !== null && Number.isInteger(coverId) && coverId > 0) {
     return `https://covers.openlibrary.org/b/id/${coverId}-L.jpg`;

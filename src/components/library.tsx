@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { coverUrl, type BookDetails, type LibraryHit } from "../lib/books";
+import { useEffect, useRef, useState } from "react";
+import { coverUrl, resultOrders, sortResults, type BookDetails, type LibraryHit, type ResultOrder } from "../lib/books";
 import type { BookShelf } from "../lib/backend";
 import { enrichBooks } from "../lib/google-books";
 import { useShelf } from "./AppShell";
@@ -34,23 +34,81 @@ export function HitSection({
   hits,
   note,
   empty,
+  order = "relevance",
+  onOrder,
 }: {
   title: string;
   hits: LibraryHit[];
   note?: string;
   empty?: string;
+  order?: ResultOrder;
+  onOrder?: (order: ResultOrder) => void;
 }) {
   const [picking, setPicking] = useState<LibraryHit | null>(null);
+  const [orderOpen, setOrderOpen] = useState(false);
+  const orderRef = useRef<HTMLDivElement>(null);
+  const shown = sortResults(hits, order);
+  const orderLabel = resultOrders.find((item) => item.id === order)?.label ?? "Relevance";
+
+  useEffect(() => {
+    if (!orderOpen) return;
+    function close(event: PointerEvent) {
+      if (!orderRef.current?.contains(event.target as Node)) setOrderOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOrderOpen(false);
+    }
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [orderOpen]);
+
   return (
     <section>
       <div className="section">
         <h2>{title}</h2>
         <span>{hits.length} {hits.length === 1 ? "result" : "results"}</span>
+        {onOrder ? (
+          <div className="sort" ref={orderRef}>
+            <button
+              type="button"
+              className="sort-button"
+              aria-expanded={orderOpen}
+              aria-haspopup="menu"
+              onClick={() => setOrderOpen((open) => !open)}
+            >
+              <span>{orderLabel}</span>
+              <Chevron open={orderOpen} />
+            </button>
+            {orderOpen ? (
+              <ul className="sort-menu" role="menu">
+                {resultOrders.map((item) => (
+                  <li key={item.id} role="none">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={item.id === order}
+                      onClick={() => {
+                        onOrder(item.id);
+                        setOrderOpen(false);
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       {note ? <p className="status">{note}</p> : null}
-      {hits.length === 0 && empty ? <p className="empty">{empty}</p> : (
+      {shown.length === 0 && empty ? <p className="empty">{empty}</p> : (
         <div className="books">
-          {hits.map((hit) => (
+          {shown.map((hit) => (
             <article key={hit.id} className="book hit">
               <Cover book={hit} />
               <h3>{hit.title}</h3>

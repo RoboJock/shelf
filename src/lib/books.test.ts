@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bookDocId, coverUrl, readBook, readSearch, sortShelf, type ShelfBook } from "./books";
+import { bookDocId, coverUrl, readBook, readSearch, sortResults, sortShelf, type LibraryHit, type ShelfBook } from "./books";
 
 test("search results keep works with a title and skip duplicates", () => {
   const hits = readSearch({
@@ -32,6 +32,21 @@ test("shelf order follows the chosen sort", () => {
   assert.deepEqual(sortShelf(books, "title").map((book) => book.title), ["Beloved", "Circe", "Piranesi"]);
   assert.deepEqual(sortShelf(books, "title-desc").map((book) => book.title), ["Piranesi", "Circe", "Beloved"]);
   assert.deepEqual(sortShelf(books, "author").map((book) => book.author), ["Madeline Miller", "Susanna Clarke", "Toni Morrison"]);
+});
+
+test("search results sort by title, author, and year", () => {
+  const hits: LibraryHit[] = [
+    { id: "b", title: "Piranesi", author: "Susanna Clarke", year: 2020, coverId: null },
+    { id: "a", title: "Beloved", author: "Toni Morrison", year: null, coverId: null },
+    { id: "c", title: "Circe", author: "Madeline Miller", year: 2018, coverId: null },
+  ];
+  assert.deepEqual(sortResults(hits, "relevance").map((hit) => hit.title), ["Piranesi", "Beloved", "Circe"]);
+  assert.deepEqual(sortResults(hits, "title").map((hit) => hit.title), ["Beloved", "Circe", "Piranesi"]);
+  assert.deepEqual(sortResults(hits, "title-desc").map((hit) => hit.title), ["Piranesi", "Circe", "Beloved"]);
+  assert.deepEqual(sortResults(hits, "author").map((hit) => hit.author), ["Madeline Miller", "Susanna Clarke", "Toni Morrison"]);
+  assert.deepEqual(sortResults(hits, "author-desc").map((hit) => hit.author), ["Toni Morrison", "Susanna Clarke", "Madeline Miller"]);
+  assert.deepEqual(sortResults(hits, "year").map((hit) => hit.title), ["Piranesi", "Circe", "Beloved"]);
+  assert.deepEqual(sortResults(hits, "year-desc").map((hit) => hit.title), ["Circe", "Piranesi", "Beloved"]);
 });
 
 test("saved book documents need a work key and a title", () => {
