@@ -106,6 +106,56 @@ async function getJson(url: string, fetchImpl: typeof fetch, signal?: AbortSigna
   }
 }
 
+export function authorPicks(input: {
+  author: string;
+  shownIds: string[];
+  shownTitles: string[];
+  authorBooks: RelatedBook[];
+  genreBooks: RelatedBook[];
+}): { books: RelatedBook[]; authors: string[] } {
+  const author = input.author.trim().toLowerCase();
+  const byAuthor = input.authorBooks.filter((book) => book.author.trim().toLowerCase() === author);
+  const books = fresh(byAuthor, new Set(input.shownIds), new Set(input.shownTitles.map((title) => title.toLowerCase())), [], 6);
+  const authors: string[] = [];
+  for (const book of input.genreBooks) {
+    const name = book.author.trim();
+    if (!name || name.toLowerCase() === "unknown" || name.toLowerCase() === author) continue;
+    if (authors.some((item) => item.toLowerCase() === name.toLowerCase())) continue;
+    authors.push(name);
+    if (authors.length >= 6) break;
+  }
+  return { books, authors };
+}
+
+export async function loadAuthorRecommendations(
+  hits: { id: string; title: string; author: string }[],
+  signal?: AbortSignal,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ author: string; books: RelatedBook[]; authors: string[] } | null> {
+  const author = hits.map((hit) => hit.author.trim()).find((name) => name && name.toLowerCase() !== "unknown");
+  if (!author) return null;
+  const lead = hits.find((hit) => hit.author.trim().toLowerCase() === author.toLowerCase());
+  const fields = "key,title,author_name,cover_i,first_publish_year";
+  const [authorPayload, workPayload] = await Promise.all([
+    getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ author, language: "eng", limit: "16", fields })}`, fetchImpl, signal),
+    lead && lead.id.startsWith("/works/") ? getJson(`https://openlibrary.org${lead.id}.json`, fetchImpl, signal) : Promise.resolve(null),
+  ]);
+  const subjects = workPayload && typeof workPayload === "object" && "subjects" in workPayload ? (workPayload as { subjects?: unknown }).subjects : null;
+  const genre = chooseGenre(subjects);
+  const genrePayload = genre
+    ? await getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ subject: genre, language: "eng", limit: "12", fields })}`, fetchImpl, signal)
+    : null;
+  const picks = authorPicks({
+    author,
+    shownIds: hits.map((hit) => hit.id),
+    shownTitles: hits.map((hit) => hit.title),
+    authorBooks: readRelated(authorPayload, 16),
+    genreBooks: readRelated(genrePayload),
+  });
+  if (picks.books.length === 0 && picks.authors.length === 0) return null;
+  return { author, ...picks };
+}
+
 export async function loadSuggestions(
   books: { id: string; title: string; author: string; categories?: string | null }[],
   signal?: AbortSignal,

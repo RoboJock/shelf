@@ -271,7 +271,7 @@ export function isCollection(title: string): boolean {
     || (/\bseries\b/i.test(title) && /\d+\s*[-–]\s*\d+/.test(title));
 }
 
-export function readRelated(payload: unknown): RelatedBook[] {
+export function readRelated(payload: unknown, limit = 10): RelatedBook[] {
   if (!payload || typeof payload !== "object" || !Array.isArray((payload as { docs?: unknown[] }).docs)) return [];
   const books: RelatedBook[] = [];
   for (const doc of (payload as { docs: unknown[] }).docs) {
@@ -289,7 +289,7 @@ export function readRelated(payload: unknown): RelatedBook[] {
       coverId: typeof record.cover_i === "number" && record.cover_i > 0 ? record.cover_i : null,
       position: null,
     });
-    if (books.length >= 10) break;
+    if (books.length >= limit) break;
   }
   return books;
 }
