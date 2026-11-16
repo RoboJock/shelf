@@ -418,30 +418,75 @@ async function retailEdition(title: string, editionsPayload: unknown, popularPay
   return { isbn13: pick?.isbn13 ?? null, asin: pick?.asin || (pick?.isbn13 ? isbn10(pick.isbn13) : null) };
 }
 
-export async function loadBookPage(workKey: string, signal?: AbortSignal, fetchImpl: typeof fetch = fetch, coverId?: number | null): Promise<BookPageInfo | null> {
+function bookShell(workKey: string, work: WorkRecord, coverId?: number | null): BookPageInfo {
+  const chosenCover = coverId && coverId > 0 ? coverId : work.coverId;
+  return {
+    book: {
+      id: workKey,
+      title: work.title,
+      author: "",
+      year: work.year,
+      coverId: chosenCover,
+      description: work.description,
+      pages: null,
+      publisher: null,
+      categories: work.subjects,
+      image: null,
+    },
+    summary: work.description,
+    purchase: [],
+    authorLinks: work.authorKey ? [{ label: "Open Library", href: `https://openlibrary.org${work.authorKey}` }] : [],
+    series: null,
+    reading: dedupe([{ label: "Open Library", href: `https://openlibrary.org${workKey}` }, ...work.links]),
+    genre: chooseGenre(work.subjectNames),
+    suggestions: [],
+    authorBooks: [],
+  };
+}
+
+export async function loadBookPage(workKey: string, signal?: AbortSignal, fetchImpl: typeof fetch = fetch, coverId?: number | null, reveal?: (page: BookPageInfo) => void): Promise<BookPageInfo | null> {
   if (!workKey.startsWith("/works/")) return null;
   const work = readWork(await getJson(`https://openlibrary.org${workKey}.json`, fetchImpl, signal));
   if (!work) return null;
   const genre = chooseGenre(work.subjectNames);
   const seriesId = work.seriesKey?.split("/").pop() ?? "";
   const authorId = work.authorKey?.split("/").pop() ?? "";
-  const [authorPayload, seriesPayload, seriesSearch, suggestionSearch, authorSearch, editionsPayload, popularPayload] = await Promise.all([
-    work.authorKey ? getJson(`https://openlibrary.org${work.authorKey}.json`, fetchImpl, signal) : Promise.resolve(null),
+  const fields = "key,title,author_name,cover_i,first_publish_year";
+  const show = (page: BookPageInfo) => {
+    if (!signal?.aborted) reveal?.(page);
+  };
+  const shell = bookShell(workKey, work, coverId);
+  show(shell);
+  const authorPromise = work.authorKey ? getJson(`https://openlibrary.org${work.authorKey}.json`, fetchImpl, signal) : Promise.resolve(null);
+  const rest = Promise.all([
     work.seriesKey ? getJson(`https://openlibrary.org${work.seriesKey}.json`, fetchImpl, signal) : Promise.resolve(null),
-    seriesId ? getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ q: `series_key:${seriesId}`, limit: "12", fields: "key,title,author_name,cover_i,first_publish_year" })}`, fetchImpl, signal) : Promise.resolve(null),
-    genre ? getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ subject: genre, limit: "12", fields: "key,title,author_name,cover_i,first_publish_year" })}`, fetchImpl, signal) : Promise.resolve(null),
-    authorId ? getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ q: `author_key:${authorId}`, language: "eng", limit: "12", fields: "key,title,author_name,cover_i,first_publish_year" })}`, fetchImpl, signal) : Promise.resolve(null),
+    seriesId ? getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ q: `series_key:${seriesId}`, limit: "12", fields })}`, fetchImpl, signal) : Promise.resolve(null),
+    genre ? getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ subject: genre, limit: "12", fields })}`, fetchImpl, signal) : Promise.resolve(null),
+    authorId ? getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ q: `author_key:${authorId}`, language: "eng", limit: "12", fields })}`, fetchImpl, signal) : Promise.resolve(null),
     getJson(`https://openlibrary.org${workKey}/editions.json?${new URLSearchParams({ limit: "50" })}`, fetchImpl, signal),
     getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ q: `key:${workKey}`, fields: "key,isbn", limit: "1" })}`, fetchImpl, signal),
   ]);
+  const authorPayload = await authorPromise;
   const authorRecord = authorPayload && typeof authorPayload === "object" ? authorPayload as Record<string, unknown> : null;
   const author = typeof authorRecord?.name === "string" ? authorRecord.name : "Unknown";
+  show({
+    ...shell,
+    book: { ...shell.book, author },
+    authorLinks: dedupe([
+      ...readLinks(authorRecord?.links, 4),
+      ...shell.authorLinks,
+    ]),
+  });
+  const factsPromise = lookupFacts(work.title, author, signal, fetchImpl).catch(() => null as BookFacts | null);
+  const offersPromise = offers(work.title, author, signal, fetchImpl);
+  const authorWikiPromise = wiki(author === "Unknown" ? "" : author, fetchImpl, signal);
+  const [seriesPayload, seriesSearch, suggestionSearch, authorSearch, editionsPayload, popularPayload] = await rest;
   const seriesRecord = seriesPayload && typeof seriesPayload === "object" ? seriesPayload as Record<string, unknown> : null;
   const seriesName = typeof seriesRecord?.name === "string" ? seriesRecord.name : typeof seriesRecord?.title === "string" ? seriesRecord.title : "";
   const [facts, offersPayload, authorWiki, seriesWiki] = await Promise.all([
-    lookupFacts(work.title, author, signal, fetchImpl).catch(() => null as BookFacts | null),
-    offers(work.title, author, signal, fetchImpl),
-    wiki(author === "Unknown" ? "" : author, fetchImpl, signal),
+    factsPromise,
+    offersPromise,
+    authorWikiPromise,
     wiki(seriesName, fetchImpl, signal),
   ]);
   const filled = fillGaps({

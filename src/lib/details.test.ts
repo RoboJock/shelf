@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chooseGenre, chooseRetail, isbn10, isCollection, loadBookPage, purchaseLinks, readLinks, readRelated, readStoreTitle, readText, sameBookTitle, seriesPlace, wikipediaUrl } from "./details";
+import { chooseGenre, chooseRetail, isbn10, isCollection, loadBookPage, purchaseLinks, readLinks, readRelated, readStoreTitle, readText, sameBookTitle, seriesPlace, wikipediaUrl, type BookPageInfo } from "./details";
 
 test("a work description can be a string or an object", () => {
   assert.equal(readText("A full summary of the book."), "A full summary of the book.");
@@ -121,7 +121,13 @@ test("a book page keeps the catalog summary and adds purchase and series links",
   const previous = process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY;
   process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY = "test-key";
   try {
-    const page = await loadBookPage("/works/OL1W", undefined, fetchImpl);
+    const early: BookPageInfo[] = [];
+    const page = await loadBookPage("/works/OL1W", undefined, fetchImpl, null, (partial) => early.push(partial));
+    assert.equal(early[0]?.book.title, "The Lord of the Rings");
+    assert.equal(early[0]?.summary, "A full summary of the war of the ring.");
+    assert.equal(early[0]?.purchase.length, 0);
+    assert.equal(early.at(-1)?.book.author, "J. R. R. Tolkien");
+    assert.equal(early.at(-1)?.purchase.length, 0);
     assert.equal(page?.book.title, "The Lord of the Rings");
     assert.equal(page?.book.author, "J. R. R. Tolkien");
     assert.equal(page?.book.year, 1954);
