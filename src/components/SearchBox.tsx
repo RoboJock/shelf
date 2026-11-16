@@ -2,10 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import type { LibraryHit } from "../lib/books";
+import { coverUrl, type LibraryHit } from "../lib/books";
 import { findBooks } from "../lib/search";
 import { bookHref } from "../lib/details";
 import { rememberSearch } from "../lib/recent";
+
+function CoverThumb({ book }: { book: LibraryHit }) {
+  const src = coverUrl(book.coverId)?.replace("-L.jpg", "-S.jpg") ?? null;
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <span className="suggest-cover" aria-hidden="true" />;
+  return <img className="suggest-cover" src={src} alt="" onError={() => setFailed(true)} />;
+}
 
 export function SearchBox({ initial = "" }: { initial?: string }) {
   const router = useRouter();
@@ -101,6 +108,7 @@ export function SearchBox({ initial = "" }: { initial?: string }) {
             {preview.map((hit) => (
               <li key={hit.id} role="none">
                 <button type="button" role="option" onClick={() => { rememberSearch(hit.title, localStorage); router.push(bookHref(hit.id, hit.coverId)); }}>
+                  <CoverThumb book={hit} />
                   <span>{hit.title}</span>
                   <small>{hit.author}{hit.year ? ` · ${hit.year}` : ""}</small>
                 </button>

@@ -228,15 +228,26 @@ h1 {
 .search .suggest button {
   width: 100%;
   height: auto;
-  min-height: 44px;
-  padding: 8px 10px;
+  min-height: 52px;
+  padding: 6px 10px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: var(--ink);
   text-align: left;
   display: grid;
-  gap: 2px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: center;
+}
+.suggest-cover {
+  grid-row: 1 / span 2;
+  width: 32px;
+  height: 48px;
+  object-fit: cover;
+  background: var(--cover);
+  border-radius: 2px;
 }
 .search .suggest button:hover,
 .search .suggest button:focus-visible { background: var(--cover); }
