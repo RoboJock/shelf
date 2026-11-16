@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chooseGenre, isCollection, loadBookPage, purchaseLinks, readLinks, readRelated, readText, seriesPlace, wikipediaUrl } from "./details";
+import { chooseGenre, chooseRetail, isbn10, isCollection, loadBookPage, purchaseLinks, readLinks, readRelated, readStoreTitle, readText, sameBookTitle, seriesPlace, wikipediaUrl } from "./details";
 
 test("a work description can be a string or an object", () => {
   assert.equal(readText("A full summary of the book."), "A full summary of the book.");
@@ -24,14 +24,54 @@ test("only web links from the catalog are kept", () => {
   assert.deepEqual(links, [{ label: "The Lord of the Rings - Wikipedia", href: "https://en.wikipedia.org/wiki/The_Lord_of_the_Rings" }]);
 });
 
-test("purchase links include a store when the book is for sale", () => {
-  const links = purchaseLinks("Circe", "Madeline Miller", {
+test("purchase links open the listing for that edition", () => {
+  const links = purchaseLinks("Piranesi", "Susanna Clarke", {
     buyLink: "https://play.google.com/store/books/details?id=abc",
     infoLink: "http://books.google.com/books?id=abc",
+    isbn13: "9781635575637",
+    asin: "163557563X",
   });
-  assert.equal(links[0]?.label, "Google Play");
-  assert.equal(links.some((link) => link.label === "Bookshop.org"), true);
-  assert.equal(links.some((link) => link.href.startsWith("https://books.google.com/")), true);
+  assert.equal(links.find((link) => link.label === "Google Play")?.href, "https://play.google.com/store/books/details?id=abc");
+  assert.equal(links.find((link) => link.label === "Amazon")?.href, "https://www.amazon.com/dp/163557563X");
+  assert.equal(links.find((link) => link.label === "Bookshop.org")?.href, "https://bookshop.org/book/9781635575637");
+  assert.equal(links.find((link) => link.label === "Barnes & Noble")?.href, "https://www.barnesandnoble.com/w/?ean=9781635575637");
+  assert.equal(links.find((link) => link.label === "Google Books")?.href.startsWith("https://books.google.com/books?id=abc"), true);
+  const bare = purchaseLinks("Piranesi", "Susanna Clarke", {});
+  assert.equal(bare.length, 0);
+});
+
+test("an ISBN-13 becomes the ISBN-10 Amazon uses for that printing", () => {
+  assert.equal(isbn10("9781635575637"), "163557563X");
+  assert.equal(isbn10("9780316556347"), "0316556343");
+  assert.equal(isbn10("9780618574940"), "0618574948");
+  assert.equal(isbn10("9791234567896"), null);
+});
+
+test("a store listing has to be the same book", () => {
+  assert.equal(readStoreTitle({ product: { title: "Piranesi (Women's Prize for Fiction Winner)" } }), "Piranesi (Women's Prize for Fiction Winner)");
+  assert.equal(readStoreTitle({}), null);
+  assert.equal(sameBookTitle("Piranesi", "Piranesi (Women's Prize for Fiction Winner)"), true);
+  assert.equal(sameBookTitle("The Fellowship of the Ring", "The Fellowship of the Ring (The Lord of the Rings, Part 1)"), true);
+  assert.equal(sameBookTitle("Circe", "The Song of Achilles"), false);
+});
+
+test("a retail edition prefers the Amazon listing for that title", () => {
+  const chosen = chooseRetail([
+    { title: "Piranesi", isbn_13: ["9781526622433"], physical_format: "paperback", number_of_pages: 245, source_records: ["bwb:9781526622433"] },
+    { title: "Piranesi", isbn_13: ["9781635575637"], physical_format: "hardcover", number_of_pages: 272, source_records: ["amazon:163557563X"] },
+  ], "Piranesi");
+  assert.deepEqual(chosen, { isbn13: "9781635575637", asin: "163557563X" });
+  const english = chooseRetail([
+    { title: "Piranesi", isbn_13: ["9788417918484"], number_of_pages: 272, source_records: ["amazon:8417918485"] },
+    { title: "Piranesi", isbn_13: ["9781635577808"], physical_format: "paperback", number_of_pages: 272, source_records: ["amazon:1635577802"] },
+  ], "Piranesi");
+  assert.equal(english.asin, "1635577802");
+  const fellowship = chooseRetail([
+    { title: "The Fellowship of the Ring", isbn_13: ["9780008108298"], physical_format: "paperback", publishers: ["HarperCollins"], number_of_pages: 500, source_records: ["amazon:0008108293"] },
+    { title: "The Fellowship of the Ring", isbn_13: ["9780618574940"], physical_format: "Paperback", publishers: ["Houghton Mifflin Company"], number_of_pages: 400 },
+  ], "The Fellowship of the Ring");
+  assert.equal(fellowship.isbn13, "9780618574940");
+  assert.equal(fellowship.asin, "0008108293");
 });
 
 test("a book page keeps the catalog summary and adds purchase and series links", async () => {
