@@ -6,11 +6,21 @@ export interface BookLink {
   href: string;
 }
 
+export interface RelatedBook {
+  id: string;
+  title: string;
+  author: string;
+  year: number | null;
+  coverId: number | null;
+  position: string | null;
+}
+
 export interface SeriesInfo {
   name: string;
   position: string | null;
   summary: string | null;
   links: BookLink[];
+  books: RelatedBook[];
 }
 
 export interface BookPageInfo {
@@ -20,6 +30,8 @@ export interface BookPageInfo {
   authorLinks: BookLink[];
   series: SeriesInfo | null;
   reading: BookLink[];
+  genre: string | null;
+  suggestions: RelatedBook[];
 }
 
 export function bookHref(id: string, coverId?: number | null): string {
@@ -31,8 +43,12 @@ export function readText(value: unknown): string | null {
   const text = typeof value === "string" ? value : value && typeof value === "object" && "value" in value && typeof value.value === "string" ? value.value : "";
   const clean = text
     .replace(/<[^>]*>/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(/\[([^\]]+)\]\(https?:[^)]+\)/g, "$1")
     .replace(/[*_]{1,3}/g, "")
+    .replace(/#+\s*/g, "")
+    .replace(/[▶►]\s*/g, "")
+    .replace(/Read this book online\.?\s*/gi, "")
     .replace(/This description comes from the publisher\.?/gi, "")
     .split(/\s---\s/)[0]
     .replace(/\s+/g, " ")
@@ -87,12 +103,101 @@ function yearOf(value: unknown): number | null {
   return year >= 1000 && year <= 2100 ? year : null;
 }
 
+function subjectNames(subjects: unknown): string[] {
+  if (!Array.isArray(subjects)) return [];
+  const names = subjects.flatMap((item) => {
+    if (typeof item !== "string") return [];
+    if (/^(form|place|time|series|nyt):/i.test(item) || /=/.test(item)) return [];
+    const name = item.replace(/^genre:/i, "").replace(/_/g, " ").trim();
+    if (!name || SKIPPED_SUBJECTS.has(name.toLowerCase()) || name.length > 40) return [];
+    return [name];
+  });
+  return [...new Set(names)];
+}
+
+const PREFERRED_GENRES = ["fantasy", "science fiction", "mystery", "romance", "horror", "historical fiction", "thriller", "adventure", "young adult", "magic", "wizards", "dystopia", "classics", "biography", "poetry", "drama", "crime"];
+const SKIPPED_SUBJECTS = new Set(["fiction", "novel", "novels", "short stories", "english literature", "american literature", "literature", "juvenile fiction", "juvenile literature", "accessible book", "protected daisy", "in library", "large type books"]);
+
+export function chooseGenre(subjects: unknown): string | null {
+  if (!Array.isArray(subjects)) return null;
+  const names = subjects.flatMap((item) => {
+    if (typeof item !== "string") return [];
+    const tagged = /^(form|place|time|series):/i.test(item);
+    const name = item.replace(/^(form|genre|place|time|series):/i, "").replace(/_/g, " ").trim();
+    if (!name || tagged) return [];
+    return [{ genre: /^genre:/i.test(item), name }];
+  });
+  const tagged = names.find((item) => item.genre && !SKIPPED_SUBJECTS.has(item.name.toLowerCase()));
+  if (tagged) return tagged.name.toLowerCase();
+  for (const genre of PREFERRED_GENRES) {
+    if (names.some((item) => item.name.toLowerCase() === genre || item.name.toLowerCase().includes(genre))) return genre;
+  }
+  const first = names.find((item) => !SKIPPED_SUBJECTS.has(item.name.toLowerCase()) && item.name.length <= 32);
+  return first ? first.name.toLowerCase() : null;
+}
+
+export function seriesPlace(name: string, position: string | null): string {
+  const range = position?.trim().match(/^(\d+)\s*[-–]\s*(\d+)$/);
+  if (range) return `Books ${range[1]}–${range[2]} of ${name}`;
+  if (position && /^\d+$/.test(position.trim())) return `Book ${position.trim()} of ${name}`;
+  if (position?.trim()) return `Part ${position.trim()} of ${name}`;
+  return `Part of ${name}`;
+}
+
+export function isCollection(title: string): boolean {
+  return /\b(box set|collection|omnibus|pack)\b/i.test(title)
+    || /\(\s*series\s*\)/i.test(title)
+    || (/\bseries\b/i.test(title) && /\d+\s*[-–]\s*\d+/.test(title));
+}
+
+export function readRelated(payload: unknown): RelatedBook[] {
+  if (!payload || typeof payload !== "object" || !Array.isArray((payload as { docs?: unknown[] }).docs)) return [];
+  const books: RelatedBook[] = [];
+  for (const doc of (payload as { docs: unknown[] }).docs) {
+    if (!doc || typeof doc !== "object") continue;
+    const record = doc as Record<string, unknown>;
+    const id = typeof record.key === "string" ? record.key : "";
+    const title = typeof record.title === "string" ? record.title.trim() : "";
+    if (!id.startsWith("/works/") || !title || isCollection(title)) continue;
+    const authors = Array.isArray(record.author_name) ? record.author_name : [];
+    books.push({
+      id,
+      title,
+      author: typeof authors[0] === "string" ? authors[0] : "Unknown",
+      year: typeof record.first_publish_year === "number" ? record.first_publish_year : null,
+      coverId: typeof record.cover_i === "number" && record.cover_i > 0 ? record.cover_i : null,
+      position: null,
+    });
+    if (books.length >= 10) break;
+  }
+  return books;
+}
+
+export function orderSeries(books: RelatedBook[]): RelatedBook[] {
+  return [...books].sort((a, b) => {
+    const rank = positionRank(a.position) - positionRank(b.position);
+    if (rank !== 0) return rank;
+    if (a.year !== b.year) {
+      if (a.year === null) return 1;
+      if (b.year === null) return -1;
+      return a.year - b.year;
+    }
+    return a.title.localeCompare(b.title);
+  });
+}
+
+function positionRank(value: string | null): number {
+  const match = value?.match(/\d+/);
+  return match ? Number(match[0]) : 10000;
+}
+
 interface WorkRecord {
   title: string;
   description: string | null;
   coverId: number | null;
   year: number | null;
   subjects: string | null;
+  subjectNames: unknown;
   links: BookLink[];
   authorKey: string | null;
   seriesKey: string | null;
@@ -106,15 +211,8 @@ function readWork(payload: unknown): WorkRecord | null {
   if (!title) return null;
   const covers = Array.isArray(work.covers) ? work.covers : [];
   const coverId = typeof covers[0] === "number" && covers[0] > 0 ? covers[0] : null;
-  const subjects = Array.isArray(work.subjects)
-    ? work.subjects
-      .filter((item): item is string => typeof item === "string")
-      .map((item) => item.replace(/^(form|genre|place|time):/i, "").trim())
-      .filter(Boolean)
-      .slice(0, 3)
-      .join(" · ")
-      .slice(0, 80)
-    : "";
+  const names = subjectNames(work.subjects);
+  const subjects = names.slice(0, 3).join(" · ").slice(0, 80);
   const authors = Array.isArray(work.authors) ? work.authors : [];
   const firstAuthor = authors[0] && typeof authors[0] === "object" ? authors[0] as Record<string, unknown> : null;
   const author = firstAuthor?.author && typeof firstAuthor.author === "object" ? firstAuthor.author as Record<string, unknown> : null;
@@ -126,6 +224,7 @@ function readWork(payload: unknown): WorkRecord | null {
     coverId,
     year: yearOf(work.first_publish_date),
     subjects: subjects || null,
+    subjectNames: work.subjects,
     links: readLinks(work.links),
     authorKey: typeof author?.key === "string" ? author.key : null,
     seriesKey: typeof seriesRef?.key === "string" ? seriesRef.key : null,
@@ -178,9 +277,13 @@ export async function loadBookPage(workKey: string, signal?: AbortSignal, fetchI
   if (!workKey.startsWith("/works/")) return null;
   const work = readWork(await getJson(`https://openlibrary.org${workKey}.json`, fetchImpl, signal));
   if (!work) return null;
-  const [authorPayload, seriesPayload] = await Promise.all([
+  const genre = chooseGenre(work.subjectNames);
+  const seriesId = work.seriesKey?.split("/").pop() ?? "";
+  const [authorPayload, seriesPayload, seriesSearch, suggestionSearch] = await Promise.all([
     work.authorKey ? getJson(`https://openlibrary.org${work.authorKey}.json`, fetchImpl, signal) : Promise.resolve(null),
     work.seriesKey ? getJson(`https://openlibrary.org${work.seriesKey}.json`, fetchImpl, signal) : Promise.resolve(null),
+    seriesId ? getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ q: `series_key:${seriesId}`, limit: "12", fields: "key,title,author_name,cover_i,first_publish_year" })}`, fetchImpl, signal) : Promise.resolve(null),
+    genre ? getJson(`https://openlibrary.org/search.json?${new URLSearchParams({ subject: genre, limit: "12", fields: "key,title,author_name,cover_i,first_publish_year" })}`, fetchImpl, signal) : Promise.resolve(null),
   ]);
   const authorRecord = authorPayload && typeof authorPayload === "object" ? authorPayload as Record<string, unknown> : null;
   const author = typeof authorRecord?.name === "string" ? authorRecord.name : "Unknown";
@@ -209,6 +312,14 @@ export async function loadBookPage(workKey: string, signal?: AbortSignal, fetchI
     ...readLinks(authorRecord?.links, 4),
     ...(work.authorKey ? [{ label: "Open Library", href: `https://openlibrary.org${work.authorKey}` }] : []),
   ]);
+  const seriesBooks = await Promise.all(readRelated(seriesSearch).map(async (item) => {
+    if (item.id === workKey) return { ...item, position: work.position };
+    const other = readWork(await getJson(`https://openlibrary.org${item.id}.json`, fetchImpl, signal));
+    if (other?.seriesKey && work.seriesKey && other.seriesKey !== work.seriesKey) return null;
+    return { ...item, position: other?.position ?? null, coverId: item.coverId ?? other?.coverId ?? null };
+  }));
+  const ordered = orderSeries(seriesBooks.filter((item): item is RelatedBook => Boolean(item)));
+  const seriesIds = new Set(ordered.map((item) => item.id));
   const series = seriesName ? {
     name: seriesName,
     position: work.position,
@@ -218,6 +329,7 @@ export async function loadBookPage(workKey: string, signal?: AbortSignal, fetchI
       ...(seriesWiki ? [{ label: "Wikipedia", href: seriesWiki }] : []),
       ...readLinks(seriesRecord?.links, 4),
     ]),
+    books: ordered.filter((item) => item.id !== workKey),
   } : null;
   return {
     book: { ...filled, image: coverUrl(filled.coverId, filled.image) ? filled.image : null },
@@ -226,6 +338,8 @@ export async function loadBookPage(workKey: string, signal?: AbortSignal, fetchI
     authorLinks,
     series,
     reading: dedupe([{ label: "Open Library", href: `https://openlibrary.org${workKey}` }, ...work.links]),
+    genre,
+    suggestions: readRelated(suggestionSearch).filter((item) => item.id !== workKey && !seriesIds.has(item.id)).slice(0, 6),
   };
 }
 

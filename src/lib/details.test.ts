@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { loadBookPage, purchaseLinks, readLinks, readText, wikipediaUrl } from "./details";
+import { chooseGenre, isCollection, loadBookPage, purchaseLinks, readLinks, readRelated, readText, seriesPlace, wikipediaUrl } from "./details";
 
 test("a work description can be a string or an object", () => {
   assert.equal(readText("A full summary of the book."), "A full summary of the book.");
@@ -8,6 +8,10 @@ test("a work description can be a string or an object", () => {
   assert.equal(
     readText("**From the *Times*.** See [Piranesi](https://example.com/p). This description comes from the publisher."),
     "From the Times. See Piranesi.",
+  );
+  assert.equal(
+    readText("### [▶ Read this book online](https://example.com/read)\n\nA full summary."),
+    "A full summary.",
   );
   assert.equal(readText({ value: 4 }), null);
 });
@@ -47,6 +51,19 @@ test("a book page keeps the catalog summary and adds purchase and series links",
     });
     if (url.includes("/authors/OL1A")) return json({ name: "J. R. R. Tolkien", links: [{ title: "Tolkien Estate", url: "https://www.tolkienestate.com/" }] });
     if (url.includes("/series/OL1L")) return json({ name: "The Lord of the Rings", description: "Three volumes." });
+    if (url.includes("series_key")) return json({ docs: [
+      { key: "/works/OL3W", title: "The Two Towers", author_name: ["J. R. R. Tolkien"], cover_i: 3, first_publish_year: 1954 },
+      { key: "/works/OL1W", title: "The Lord of the Rings", author_name: ["J. R. R. Tolkien"], cover_i: 99, first_publish_year: 1954 },
+      { key: "/works/OL2W", title: "The Fellowship of the Ring", author_name: ["J. R. R. Tolkien"], cover_i: 2, first_publish_year: 1954 },
+      { key: "/works/OL9W", title: "The Lord of the Rings (series) 1-3", author_name: ["J. R. R. Tolkien"], cover_i: 9, first_publish_year: 1954 },
+    ] });
+    if (url.includes("/works/OL2W")) return json({ title: "The Fellowship of the Ring", series: [{ series: { key: "/series/OL1L" }, position: "1" }] });
+    if (url.includes("/works/OL3W")) return json({ title: "The Two Towers", series: [{ series: { key: "/series/OL1L" }, position: "2" }] });
+    if (url.includes("subject=")) return json({ docs: [
+      { key: "/works/OL1W", title: "The Lord of the Rings", author_name: ["J. R. R. Tolkien"], cover_i: 99, first_publish_year: 1954 },
+      { key: "/works/OL2W", title: "The Fellowship of the Ring", author_name: ["J. R. R. Tolkien"], cover_i: 2, first_publish_year: 1954 },
+      { key: "/works/OL8W", title: "The Hobbit", author_name: ["J. R. R. Tolkien"], cover_i: 8, first_publish_year: 1937 },
+    ] });
     if (url.includes("wikipedia.org")) {
       const search = new URL(url).searchParams.get("search");
       const page = search === "J. R. R. Tolkien" ? "J._R._R._Tolkien" : "The_Lord_of_the_Rings";
@@ -66,6 +83,11 @@ test("a book page keeps the catalog summary and adds purchase and series links",
     assert.equal(page?.purchase[0]?.label, "Google Play");
     assert.equal(page?.series?.name, "The Lord of the Rings");
     assert.equal(page?.series?.position, "1-3");
+    assert.equal(seriesPlace(page?.series?.name ?? "", page?.series?.position ?? null), "Books 1–3 of The Lord of the Rings");
+    assert.deepEqual(page?.series?.books.map((item) => item.title), ["The Fellowship of the Ring", "The Two Towers"]);
+    assert.deepEqual(page?.series?.books.map((item) => item.position), ["1", "2"]);
+    assert.equal(page?.genre, "fantasy");
+    assert.deepEqual(page?.suggestions.map((item) => item.title), ["The Hobbit"]);
     assert.equal(page?.authorLinks.some((link) => link.href.endsWith("/J._R._R._Tolkien")), true);
     assert.equal(page?.reading.some((link) => link.href.endsWith("/The_Lord_of_the_Rings")), true);
     assert.equal(calls.some((url) => url.includes("key=test-key")), true);
@@ -73,6 +95,17 @@ test("a book page keeps the catalog summary and adds purchase and series links",
     if (previous === undefined) delete process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY;
     else process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY = previous;
   }
+});
+
+test("genre suggestions prefer a named genre and skip collections", () => {
+  assert.equal(chooseGenre(["form:novel", "genre:fantasy", "English literature"]), "fantasy");
+  assert.equal(chooseGenre(["Ghosts", "Magic and Supernatural"]), "magic");
+  assert.equal(chooseGenre(["Fiction", "English literature"]), null);
+  assert.equal(isCollection("Harry Potter (series) 1-7"), true);
+  assert.equal(isCollection("The Fellowship of the Ring"), false);
+  assert.equal(seriesPlace("Harry Potter", "2"), "Book 2 of Harry Potter");
+  const books = readRelated({ docs: [{ key: "/works/OL1W", title: "A real book", author_name: ["Ada"], cover_i: 4, first_publish_year: 1999 }] });
+  assert.equal(books[0]?.coverId, 4);
 });
 
 test("a Wikipedia search result becomes a page link", () => {

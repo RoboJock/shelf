@@ -456,6 +456,13 @@ h1 {
 .detail h2 { margin: 0; font-family: var(--font-display), Georgia, serif; font-size: 26px; font-weight: 500; }
 .detail-links { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0 0; padding: 0; list-style: none; }
 .detail-links a { color: var(--accent); }
+.series-place { margin: 10px 0 0; font-size: 16px; }
+.related { margin-top: 36px; text-align: left; }
+.related h2 { margin: 0; font-family: var(--font-display), Georgia, serif; font-size: 26px; font-weight: 500; }
+.related-row { display: flex; gap: 18px; margin-top: 14px; overflow-x: auto; padding-bottom: 8px; }
+.related-row .book { flex: 0 0 120px; width: 120px; }
+.related-row .cover, .related-row .cover-fallback { width: 120px; height: 180px; }
+.related-row .part { margin: 8px 0 0; font-size: 13px; }
 .book p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
 .book .blurb {
   color: var(--ink);
