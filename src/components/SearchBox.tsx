@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { LibraryHit } from "../lib/books";
 import { findBooks } from "../lib/search";
 import { bookHref } from "../lib/details";
+import { rememberSearch } from "../lib/recent";
 
 export function SearchBox({ initial = "" }: { initial?: string }) {
   const router = useRouter();
@@ -69,6 +70,7 @@ export function SearchBox({ initial = "" }: { initial?: string }) {
     const next = q.trim();
     if (!next) return;
     setOpen(false);
+    rememberSearch(next, localStorage);
     router.push(`/search?q=${encodeURIComponent(next)}`);
   }
 
@@ -98,7 +100,7 @@ export function SearchBox({ initial = "" }: { initial?: string }) {
             {close ? <li className="suggest-label">Close matches</li> : null}
             {preview.map((hit) => (
               <li key={hit.id} role="none">
-                <button type="button" role="option" onClick={() => router.push(bookHref(hit.id, hit.coverId))}>
+                <button type="button" role="option" onClick={() => { rememberSearch(hit.title, localStorage); router.push(bookHref(hit.id, hit.coverId)); }}>
                   <span>{hit.title}</span>
                   <small>{hit.author}{hit.year ? ` · ${hit.year}` : ""}</small>
                 </button>

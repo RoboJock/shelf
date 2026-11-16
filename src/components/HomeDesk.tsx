@@ -2,6 +2,7 @@
 
 import { firebasePublicConfig } from "../lib/backend";
 import { useShelf } from "./AppShell";
+import { HomePanels } from "./HomePanels";
 import { SearchBox } from "./SearchBox";
 
 export function HomeDesk() {
@@ -20,6 +21,7 @@ export function HomeDesk() {
         </p>
       ) : null}
       <SearchBox />
+      <HomePanels />
     </>
   );
 }

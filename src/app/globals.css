@@ -261,6 +261,34 @@ h1 {
   font-weight: 600;
   font-size: 16px;
 }
+.home-panels { margin: 28px auto 0; max-width: 760px; display: grid; gap: 16px; text-align: left; }
+.home-panel { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px 16px; }
+.home-panel h2 {
+  margin: 0;
+  font-family: var(--font-body), "Source Sans 3", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.home-panel > p { margin: 10px 0 0; color: var(--muted); font-size: 15px; }
+.home-panel h3 { margin: 14px 0 0; font-size: 16px; font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+.chips a {
+  display: inline-block;
+  color: var(--ink);
+  text-decoration: none;
+  border: 1px solid var(--field-line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: var(--field);
+  font-size: 15px;
+}
+.chips a:hover { border-color: var(--ink); }
+.home-books { display: flex; gap: 14px; margin-top: 12px; overflow-x: auto; padding-bottom: 4px; }
+.home-books .book { flex: 0 0 96px; width: 96px; }
+.home-books .cover, .home-books .cover-fallback { width: 96px; height: 144px; }
 .banner, .status { color: var(--muted); font-size: 15px; }
 .banner { margin: 22px auto 0; max-width: 640px; }
 .status { margin: 14px auto 0; }
