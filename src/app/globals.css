@@ -50,6 +50,8 @@ nav {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
 }
 .mark {
   font-family: var(--font-display), Georgia, serif;
@@ -156,9 +158,19 @@ nav {
 }
 .rail-status { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
 .desk {
+  position: relative;
   width: min(820px, 100%);
   margin: 0 auto;
   text-align: center;
+}
+.desk::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
 }
 
 h1 {
@@ -643,6 +655,7 @@ h1 {
 
 @media (max-width: 1120px) {
   .rail { position: static; width: auto; margin-bottom: 8px; }
+  .desk::before { content: none; }
   .rail ul { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 }
 @media (max-width: 800px) {
