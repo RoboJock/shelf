@@ -702,6 +702,17 @@ h1 {
   font-size: 15px;
 }
 .detail .summary { margin: 16px 0 0; font-size: 17px; line-height: 1.55; }
+.detail .summary-more {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
 .detail section { margin-top: 22px; }
 .detail h2 { margin: 0; font-family: var(--font-display), Georgia, serif; font-size: 26px; font-weight: 500; }
 .detail-links { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0 0; padding: 0; list-style: none; }
