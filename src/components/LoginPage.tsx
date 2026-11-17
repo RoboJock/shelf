@@ -83,20 +83,22 @@ export function LoginPage({ mode = "signin" }: { mode?: "signin" | "create" }) {
           : "Your shelves are saved on the account."}
       </p>
       {user && !user.guest ? (
-        <button
-          type="button"
-          className="sign-out"
-          onClick={() => {
-            void backend.signOut().then(() => {
-              refreshShelves();
-              setMessage("Signed out. You are a guest again.");
-            }).catch((error: unknown) => {
-              setMessage(error instanceof Error ? error.message : "Could not sign out.");
-            });
-          }}
-        >
-          Sign out
-        </button>
+        <div className="actions">
+          <Link className="go-shelves" href="/shelf">Your shelves</Link>
+          <button
+            type="button"
+            onClick={() => {
+              void backend.signOut().then(() => {
+                refreshShelves();
+                setMessage("Signed out. You are a guest again.");
+              }).catch((error: unknown) => {
+                setMessage(error instanceof Error ? error.message : "Could not sign out.");
+              });
+            }}
+          >
+            Sign out
+          </button>
+        </div>
       ) : (
         <form onSubmit={(event) => void submit(event)}>
           {creating ? (

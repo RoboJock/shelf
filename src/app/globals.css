@@ -792,15 +792,6 @@ a.cover-slot:focus-visible .empty-plus {
 }
 .account h2 { margin: 0 0 8px; font-family: var(--font-display), Georgia, serif; font-size: 28px; }
 .account p { margin: 0 0 12px; color: var(--muted); }
-.account .sign-out {
-  height: 40px;
-  border-radius: 8px;
-  border: 1px solid var(--field-line);
-  background: transparent;
-  color: var(--ink);
-  padding: 0 14px;
-  font-weight: 600;
-}
 .account .actions {
   display: flex;
   gap: 8px;
@@ -821,7 +812,8 @@ a.cover-slot:focus-visible .empty-plus {
   place-items: center;
   text-decoration: none;
 }
-.account .actions button[type="submit"] {
+.account .actions button[type="submit"],
+.account .actions a.go-shelves {
   background: var(--accent);
   border-color: transparent;
   color: var(--on-accent);
