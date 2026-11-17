@@ -173,6 +173,16 @@ nav {
   background: var(--panel);
 }
 .shelf-index li + li { margin-top: 10px; }
+.shelf-group { margin: 28px 0 0; font-size: 18px; }
+.shelf-by { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; font-weight: 500; }
+.share-panel { margin: 28px auto 0; max-width: 420px; text-align: left; }
+.share-panel h3 { margin: 0 0 6px; font-size: 18px; }
+.share-note { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+.share-panel .shelf-entry { margin-top: 12px; }
+.share-panel .shelf-entry input { flex: 1; width: auto; }
+.share-list { list-style: none; margin: 12px 0 0; padding: 0; }
+.share-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
+.share-email { display: block; color: var(--muted); font-size: 13px; }
 .shelf-index a:hover { border-color: var(--ink); }
 .shelf-index-add { margin-top: 18px; display: flex; justify-content: center; }
 .desk {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { createBackend, type AppUser, type Backend, type BookShelf } from "../lib/backend";
+import { createBackend, shelfHref, type AppUser, type Backend, type BookShelf } from "../lib/backend";
 
 interface ShelfContextValue {
   backend: Backend;
@@ -123,8 +123,11 @@ function ShelvesMenu() {
         {shelves.length > 0 ? (
           <ul>
             {shelves.map((shelf) => (
-              <li key={shelf.id}>
-                <Link href={`/shelf?id=${encodeURIComponent(shelf.id)}`} onClick={() => setOpen(false)}>{shelf.name}</Link>
+              <li key={`${shelf.access}-${shelf.ownerId}-${shelf.id}`}>
+                <Link href={shelfHref(shelf)} onClick={() => setOpen(false)}>
+                  {shelf.name}
+                  {shelf.access === "viewer" ? <span className="shelf-by">From {shelf.ownerName}</span> : null}
+                </Link>
               </li>
             ))}
           </ul>

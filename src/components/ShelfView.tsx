@@ -4,17 +4,21 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { shelfOrders, sortShelf, type ShelfBook, type ShelfOrder } from "../lib/books";
+import { shelfHref, type BookShelf, type ShelfViewer } from "../lib/backend";
 import { enrichBooks } from "../lib/google-books";
 import { useShelf } from "./AppShell";
 import { BookFacts, Chevron, Cover } from "./library";
 import { bookHref } from "../lib/details";
 
 export function ShelfView() {
-  const { backend, shelves, shelvesReady, refreshShelves } = useShelf();
+  const { backend, user, shelves, shelvesReady, refreshShelves } = useShelf();
   const params = useSearchParams();
   const router = useRouter();
   const id = params.get("id") ?? "";
-  const shelf = shelves.find((item) => item.id === id) ?? null;
+  const owner = params.get("owner") ?? "";
+  const shelf = shelves.find((item) => item.id === id && (owner ? item.ownerId === owner : item.access !== "viewer")) ?? null;
+  const owned = shelves.filter((item) => item.access !== "viewer");
+  const canEdit = shelf?.access !== "viewer";
   const [books, setBooks] = useState<ShelfBook[]>([]);
   const [status, setStatus] = useState("");
   const [order, setOrder] = useState<ShelfOrder>("newest");
@@ -28,7 +32,8 @@ export function ShelfView() {
   useEffect(() => {
     if (!id) return;
     let cancel = false;
-    backend.books(id).then((next) => {
+    setStatus("");
+    backend.books(id, owner || undefined).then((next) => {
       if (cancel) return;
       setBooks(next);
       void enrichBooks(next).then((richer) => {
@@ -40,7 +45,7 @@ export function ShelfView() {
     return () => {
       cancel = true;
     };
-  }, [backend, id, shelves]);
+  }, [backend, id, owner]);
 
   useEffect(() => {
     if (!orderOpen) return;
@@ -65,7 +70,7 @@ export function ShelfView() {
   return (
     <>
       <div className="section shelf-page">
-        {editing ? (
+        {canEdit && editing ? (
           <form
             className="shelf-entry on"
             onSubmit={(event) => {
@@ -88,7 +93,7 @@ export function ShelfView() {
               autoFocus
             />
             <button type="submit">Save</button>
-            {shelves.length > 1 ? (
+            {owned.length > 1 ? (
               <button
                 type="button"
                 className="quiet"
@@ -96,8 +101,8 @@ export function ShelfView() {
                   setStatus("");
                   void backend.deleteShelf(shelf.id).then(() => {
                     refreshShelves();
-                    const next = shelves.find((item) => item.id !== shelf.id);
-                    router.push(next ? `/shelf?id=${encodeURIComponent(next.id)}` : "/");
+                    const next = owned.find((item) => item.id !== shelf.id);
+                    router.push(next ? shelfHref(next) : "/");
                   }).catch((error: unknown) => {
                     setStatus(error instanceof Error ? error.message : "Could not delete that shelf.");
                   });
@@ -111,9 +116,10 @@ export function ShelfView() {
         ) : (
           <div className="shelf-entry on">
             <h2>{shelf.name}</h2>
-            <button type="button" className="shelf-edit" onClick={() => { setDraft(shelf.name); setEditing(true); }}>Edit</button>
+            {canEdit ? <button type="button" className="shelf-edit" onClick={() => { setDraft(shelf.name); setEditing(true); }}>Edit</button> : null}
           </div>
         )}
+        {canEdit ? null : <p className="share-note">Shared by {shelf.ownerName}. You can look through this shelf.</p>}
         <div className="sort" ref={orderRef}>
           <button
             type="button"
@@ -156,7 +162,7 @@ export function ShelfView() {
               </div>
             ))}
           </div>
-          <p className="empty">Nothing saved on this shelf yet. Search a book to add it.</p>
+          <p className="empty">{canEdit ? "Nothing saved on this shelf yet. Search a book to add it." : "Nothing saved on this shelf yet."}</p>
         </>
       ) : (
         <div className="books">
@@ -166,23 +172,109 @@ export function ShelfView() {
               <h3><Link href={bookHref(book.id, book.coverId)}>{book.title}</Link></h3>
               <p>{book.author}{book.year ? ` · ${book.year}` : ""}</p>
               <BookFacts book={book} />
+              {canEdit ? (
+                <button
+                  type="button"
+                  className="quiet"
+                  onClick={() => {
+                    setStatus("");
+                    void backend.removeBook(book.id, shelf.id).then(() => backend.books(shelf.id, shelf.ownerId)).then(setBooks).catch((error: unknown) => {
+                      setStatus(error instanceof Error ? error.message : "Could not remove that book.");
+                    });
+                  }}
+                >
+                  Remove
+                </button>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      )}
+      <SharePanel shelf={shelf} signedIn={Boolean(user && !user.guest)} />
+    </>
+  );
+}
+
+function SharePanel({ shelf, signedIn }: { shelf: BookShelf; signedIn: boolean }) {
+  const { backend, refreshShelves } = useShelf();
+  const [viewers, setViewers] = useState<ShelfViewer[]>([]);
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState("");
+  const viewing = shelf.access === "viewer";
+
+  useEffect(() => {
+    if (viewing || !signedIn) return;
+    let cancel = false;
+    backend.viewers(shelf.id).then((next) => {
+      if (!cancel) setViewers(next);
+    }).catch(() => {
+      if (!cancel) setViewers([]);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [backend, shelf.id, signedIn, viewing]);
+
+  if (viewing) return null;
+  if (!signedIn) {
+    return <p className="share-note">Sign in to share this shelf. People you invite can look through it, and only you can change it.</p>;
+  }
+
+  return (
+    <section className="share-panel" aria-label="Share this shelf">
+      <h3>Share this shelf</h3>
+      <p className="share-note">They can look through it. Only you can change it.</p>
+      <form
+        className="shelf-entry"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setStatus("");
+          void backend.shareShelf(shelf.id, email).then((viewer) => {
+            setEmail("");
+            setViewers((current) => current.some((item) => item.id === viewer.id) ? current : [...current, viewer].sort((a, b) => a.name.localeCompare(b.name)));
+            refreshShelves();
+          }).catch((error: unknown) => {
+            setStatus(error instanceof Error ? error.message : "Could not share that shelf.");
+          });
+        }}
+      >
+        <input
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          aria-label="Email to share with"
+          placeholder="Email"
+          type="email"
+          maxLength={120}
+          required
+        />
+        <button type="submit">Share</button>
+      </form>
+      {viewers.length > 0 ? (
+        <ul className="share-list">
+          {viewers.map((viewer) => (
+            <li key={viewer.id}>
+              <span>{viewer.name}<span className="share-email">{viewer.email}</span></span>
               <button
                 type="button"
                 className="quiet"
                 onClick={() => {
                   setStatus("");
-                  void backend.removeBook(book.id, shelf.id).then(() => backend.books(shelf.id)).then(setBooks).catch((error: unknown) => {
-                    setStatus(error instanceof Error ? error.message : "Could not remove that book.");
+                  void backend.unshareShelf(shelf.id, viewer.id).then(() => {
+                    setViewers((current) => current.filter((item) => item.id !== viewer.id));
+                    refreshShelves();
+                  }).catch((error: unknown) => {
+                    setStatus(error instanceof Error ? error.message : "Could not stop sharing.");
                   });
                 }}
               >
-                Remove
+                Stop sharing
               </button>
-            </article>
+            </li>
           ))}
-        </div>
-      )}
-    </>
+        </ul>
+      ) : null}
+      {status ? <p className="status" role="status">{status}</p> : null}
+    </section>
   );
 }
 
@@ -192,21 +284,38 @@ function ShelfIndex() {
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState("");
   const [status, setStatus] = useState("");
+  const owned = shelves.filter((shelf) => shelf.access !== "viewer");
+  const shared = shelves.filter((shelf) => shelf.access === "viewer");
 
   if (!shelvesReady) return <p className="status">Loading the shelves…</p>;
 
   return (
     <>
       <h1>Shelves</h1>
-      {shelves.length === 0 ? <p className="lede">You have not made a shelf yet.</p> : (
+      {owned.length === 0 ? <p className="lede">You have not made a shelf yet.</p> : (
         <ul className="shelf-index">
-          {shelves.map((shelf) => (
-            <li key={shelf.id}>
-              <Link href={`/shelf?id=${encodeURIComponent(shelf.id)}`}>{shelf.name}</Link>
+          {owned.map((shelf) => (
+            <li key={`${shelf.ownerId}-${shelf.id}`}>
+              <Link href={shelfHref(shelf)}>{shelf.name}</Link>
             </li>
           ))}
         </ul>
       )}
+      {shared.length > 0 ? (
+        <>
+          <h2 className="shelf-group">Shared with you</h2>
+          <ul className="shelf-index">
+            {shared.map((shelf) => (
+              <li key={`${shelf.ownerId}-${shelf.id}`}>
+                <Link href={shelfHref(shelf)}>
+                  {shelf.name}
+                  <span className="shelf-by">From {shelf.ownerName}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
       <div className="shelf-index-add">
         {creating ? (
           <form
@@ -218,7 +327,7 @@ function ShelfIndex() {
                 setCreating(false);
                 setDraft("");
                 refreshShelves();
-                router.push(`/shelf?id=${encodeURIComponent(shelf.id)}`);
+                router.push(shelfHref(shelf));
               }).catch((error: unknown) => {
                 setStatus(error instanceof Error ? error.message : "Could not create that shelf.");
               });

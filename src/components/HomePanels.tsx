@@ -20,7 +20,8 @@ export function HomePanels() {
   useEffect(() => {
     if (!shelvesReady) return;
     const controller = new AbortController();
-    Promise.all(shelves.map((shelf) => backend.books(shelf.id)))
+    const mine = shelves.filter((shelf) => shelf.access !== "viewer");
+    Promise.all(mine.map((shelf) => backend.books(shelf.id, shelf.ownerId)))
       .then((groups) => loadSuggestions(groups.flat(), controller.signal))
       .then((next) => {
         if (!controller.signal.aborted) setSuggestions(next);

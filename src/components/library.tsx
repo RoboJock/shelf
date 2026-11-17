@@ -153,7 +153,7 @@ function ShelfPicker({ hit, onClose }: { hit: LibraryHit; onClose: () => void })
         <h2>Save to a shelf</h2>
         <p>{hit.title}</p>
         <div className="choices">
-          {shelves.map((shelf) => (
+          {shelves.filter((shelf) => shelf.access !== "viewer").map((shelf) => (
             <button key={shelf.id} type="button" onClick={() => void saveTo(shelf)}>{shelf.name}</button>
           ))}
         </div>

@@ -130,6 +130,54 @@ test("books saved before shelves existed stay on My shelf", async () => {
   assert.equal((await backend.books())[0]?.title, "Beloved");
 });
 
+test("sharing lets another reader look, and only the owner can change the shelf", async () => {
+  memoryStorage();
+  const backend = createLocalBackend();
+  backend.subscribe(() => undefined);
+  await backend.register("ada@example.com", "password1", "Ada");
+  const shelf = await backend.createShelf("Nightstand");
+  await backend.saveBook(hit("/works/OL82563W", "Beloved"), shelf.id);
+  await backend.signOut();
+  await backend.register("ben@example.com", "password2", "Ben");
+  await backend.signOut();
+  await backend.signIn("ada@example.com", "password1");
+  const shared = await backend.shareShelf(shelf.id, "Ben@Example.com");
+  assert.equal(shared.name, "Ben");
+  assert.deepEqual((await backend.viewers(shelf.id)).map((viewer) => viewer.email), ["ben@example.com"]);
+  await assert.rejects(() => backend.shareShelf(shelf.id, "ada@example.com"), /already yours/);
+  await assert.rejects(() => backend.shareShelf(shelf.id, "nope@example.com"), /No account/);
+  await backend.signOut();
+  await assert.rejects(() => backend.shareShelf(shelf.id, "ben@example.com"), /Sign in/);
+
+  await backend.signIn("ben@example.com", "password2");
+  const received = (await backend.shelves()).find((item) => item.access === "viewer");
+  assert.ok(received);
+  assert.equal(received.name, "Nightstand");
+  assert.equal(received.ownerName, "Ada");
+  assert.deepEqual((await backend.books(received.id, received.ownerId)).map((book) => book.title), ["Beloved"]);
+  await assert.rejects(() => backend.renameShelf(received.id, "Stolen"), /made this shelf/);
+  await assert.rejects(() => backend.deleteShelf(received.id), /made this shelf/);
+  await assert.rejects(() => backend.removeBook("/works/OL82563W", received.id), /made this shelf/);
+  await assert.rejects(() => backend.saveBook(hit("/works/OL3W", "Piranesi"), received.id), /made this shelf/);
+  await assert.rejects(() => backend.shareShelf(received.id, "ada@example.com"), /made this shelf/);
+  const ownerId = received.ownerId;
+  await backend.signOut();
+
+  await backend.signIn("ada@example.com", "password1");
+  await backend.renameShelf(shelf.id, "By the bed");
+  await backend.signOut();
+  await backend.signIn("ben@example.com", "password2");
+  assert.equal((await backend.shelves()).find((item) => item.access === "viewer")?.name, "By the bed");
+  await backend.signOut();
+
+  await backend.signIn("ada@example.com", "password1");
+  await backend.unshareShelf(shelf.id, shared.id);
+  await backend.signOut();
+  await backend.signIn("ben@example.com", "password2");
+  assert.equal((await backend.shelves()).some((item) => item.access === "viewer"), false);
+  await assert.rejects(() => backend.books(shelf.id, ownerId), /not here/);
+});
+
 test("account names and short passwords are rejected", async () => {
   memoryStorage();
   const backend = createLocalBackend();

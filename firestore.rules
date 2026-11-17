@@ -25,6 +25,18 @@ service cloud.firestore {
         && (!("image" in data) || data.image == null || (data.image is string && data.image.size() <= 300));
     }
 
+    function viewerRecord(data) {
+      return data.email is string && data.email.size() >= 3 && data.email.size() <= 120
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 24;
+    }
+    function isViewer(userId, shelfId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(userId)/shelves/$(shelfId)/viewers/$(request.auth.uid));
+    }
+    function canView(userId, shelfId) {
+      return owns(userId) || isViewer(userId, shelfId);
+    }
+
     match /users/{userId} {
       allow read: if owns(userId);
       allow create, update: if owns(userId)
@@ -39,7 +51,7 @@ service cloud.firestore {
       }
 
       match /shelves/{shelfId} {
-        allow read: if owns(userId);
+        allow read: if canView(userId, shelfId);
         allow create: if owns(userId)
           && request.resource.data.uid == userId
           && request.resource.data.name is string
@@ -55,13 +67,59 @@ service cloud.firestore {
         allow delete: if owns(userId);
 
         match /books/{bookId} {
-          allow read: if owns(userId);
+          allow read: if canView(userId, shelfId);
           allow create, update: if owns(userId)
             && bookOk(request.resource.data)
             && request.resource.data.shelfId == shelfId;
           allow delete: if owns(userId);
         }
+
+        match /viewers/{viewerId} {
+          allow read: if owns(userId);
+          allow create, update: if owns(userId)
+            && viewerId != userId
+            && viewerRecord(request.resource.data);
+          allow delete: if owns(userId);
+        }
       }
+    }
+
+    match /directory/{emailId} {
+      allow get: if signedIn();
+      allow create, update: if signedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == emailId
+        && request.resource.data.uid == request.auth.uid
+        && nameOk(request.resource.data.name);
+    }
+
+    match /inbox/{viewerUid}/shelves/{shareId} {
+      function inboxOk(data) {
+        return data.ownerUid == request.auth.uid
+          && data.viewerUid == viewerUid
+          && data.viewerUid != data.ownerUid
+          && data.shelfId is string
+          && data.shelfId.size() > 0
+          && data.shelfId.size() <= 80
+          && data.shelfName is string
+          && data.shelfName.size() > 0
+          && data.shelfName.size() <= 40
+          && data.ownerName is string
+          && data.ownerName.size() >= 2
+          && data.ownerName.size() <= 24
+          && data.sharedAt is int
+          && data.sharedAt > 0
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid)/shelves/$(data.shelfId)/viewers/$(viewerUid));
+      }
+      allow read: if signedIn() && request.auth.uid == viewerUid;
+      allow create: if signedIn() && inboxOk(request.resource.data);
+      allow update: if signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.viewerUid == resource.data.viewerUid
+        && request.resource.data.shelfId == resource.data.shelfId
+        && inboxOk(request.resource.data);
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
     }
   }
 }

@@ -28,7 +28,24 @@ export interface BookShelf {
   id: string;
   name: string;
   createdAt: number;
+  ownerId: string;
+  ownerName: string;
+  access: "owner" | "viewer";
 }
+
+export interface ShelfViewer {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export function shelfHref(shelf: Pick<BookShelf, "id" | "access" | "ownerId">): string {
+  const id = encodeURIComponent(shelf.id);
+  if (shelf.access === "viewer") return `/shelf?id=${id}&owner=${encodeURIComponent(shelf.ownerId)}`;
+  return `/shelf?id=${id}`;
+}
+
+const VIEW_ONLY = "Only the person who made this shelf can change it.";
 
 export interface AppUser {
   id: string;
@@ -52,7 +69,10 @@ export interface Backend {
   deleteShelf(id: string): Promise<void>;
   saveBook(hit: LibraryHit, shelfId?: string): Promise<void>;
   removeBook(id: string, shelfId?: string): Promise<void>;
-  books(shelfId?: string): Promise<ShelfBook[]>;
+  books(shelfId?: string, ownerId?: string): Promise<ShelfBook[]>;
+  shareShelf(shelfId: string, email: string): Promise<ShelfViewer>;
+  viewers(shelfId: string): Promise<ShelfViewer[]>;
+  unshareShelf(shelfId: string, viewerId: string): Promise<void>;
 }
 
 export function firebasePublicConfig(): Record<string, string> | null {
@@ -78,6 +98,7 @@ function friendly(error: unknown): Error {
     "auth/invalid-email": "That email address does not look valid.",
     "auth/weak-password": "Use at least 8 characters.",
     "auth/too-many-requests": "Too many attempts. Wait a minute and try again.",
+    "permission-denied": "You do not have access to that.",
   };
   if (code && text[code]) return new Error(text[code]);
   if (error instanceof Error && error.message) return error;
@@ -162,6 +183,27 @@ async function remember(user: User, name: string): Promise<void> {
     { name, guest: user.isAnonymous, updatedAt: serverTimestamp() },
     { merge: true },
   );
+  const email = user.email?.trim().toLowerCase();
+  if (!email) return;
+  await setDoc(doc(database, "directory", email), { uid: user.uid, name }, { merge: true });
+}
+
+function ownedShelf(id: string, name: string, createdAt: number, ownerId: string, ownerName: string): BookShelf {
+  return { id, name, createdAt, ownerId, ownerName, access: "owner" };
+}
+
+function displayName(user: User): string {
+  return user.displayName?.trim() || "Reader";
+}
+
+function shareAddress(email: string): string {
+  const address = email.trim().toLowerCase();
+  if (!address.includes("@") || address.length > 120) throw new Error("Enter the email they use for Armarium.");
+  return address;
+}
+
+function shareDocId(ownerId: string, shelfId: string): string {
+  return `${ownerId}_${shelfId}`;
 }
 
 function bookPayload(user: User, hit: LibraryHit, savedAt: number) {
@@ -181,15 +223,31 @@ function bookPayload(user: User, hit: LibraryHit, savedAt: number) {
   };
 }
 
+async function remoteShared(user: User): Promise<BookShelf[]> {
+  const { db: database } = services();
+  const inbox = await getDocs(collection(database, "inbox", user.uid, "shelves"));
+  return inbox.docs.flatMap((item) => {
+    const data = item.data();
+    const id = typeof data.shelfId === "string" ? data.shelfId : "";
+    const ownerId = typeof data.ownerUid === "string" ? data.ownerUid : "";
+    const name = typeof data.shelfName === "string" ? data.shelfName.trim() : "";
+    if (!id || !ownerId || !name || ownerId === user.uid) return [];
+    const createdAt = typeof data.sharedAt === "number" && data.sharedAt > 0 ? data.sharedAt : 0;
+    const ownerName = typeof data.ownerName === "string" && data.ownerName.trim() ? data.ownerName.trim() : "Reader";
+    return [{ id, name, createdAt, ownerId, ownerName, access: "viewer" as const }];
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 async function remoteShelves(user: User): Promise<BookShelf[]> {
   const { db: database } = services();
   const shelfSnap = await getDocs(collection(database, "users", user.uid, "shelves"));
+  const ownerName = displayName(user);
   let shelves: BookShelf[] = shelfSnap.docs.flatMap((item) => {
     const data = item.data();
     const name = typeof data.name === "string" ? data.name.trim() : "";
     if (!name) return [];
     const createdAt = typeof data.createdAt === "number" && data.createdAt > 0 ? data.createdAt : Date.now();
-    return [{ id: item.id, name, createdAt }];
+    return [ownedShelf(item.id, name, createdAt, user.uid, ownerName)];
   }).sort((a, b) => a.createdAt - b.createdAt || a.name.localeCompare(b.name));
   if (shelves.length === 0) {
     const createdAt = Date.now();
@@ -198,7 +256,7 @@ async function remoteShelves(user: User): Promise<BookShelf[]> {
       createdAt,
       uid: user.uid,
     });
-    shelves = [{ id: "reading", name: DEFAULT_SHELF_NAME, createdAt }];
+    shelves = [ownedShelf("reading", DEFAULT_SHELF_NAME, createdAt, user.uid, ownerName)];
   }
   const legacy = await getDocs(collection(database, "users", user.uid, "books"));
   const home = shelves[0];
@@ -286,7 +344,7 @@ export function createFirebaseBackend(): Backend {
         const { auth: current } = services();
         const signed = await signInWithEmailAndPassword(current, email.trim(), password);
         const name = signed.user.displayName?.trim() || "Reader";
-        if (signed.user.displayName) await remember(signed.user, name);
+        await remember(signed.user, name);
         await adoptGuestBooks(signed.user);
       } catch (error) {
         throw friendly(error);
@@ -304,7 +362,8 @@ export function createFirebaseBackend(): Backend {
       const { auth: current } = services();
       const user = current.currentUser;
       if (!user) return localShelves(guestOwner());
-      return remoteShelves(user);
+      const [owned, shared] = await Promise.all([remoteShelves(user), remoteShared(user)]);
+      return [...owned, ...shared];
     },
     async activeShelf() {
       const { auth: current } = services();
@@ -333,7 +392,7 @@ export function createFirebaseBackend(): Backend {
       const createdAt = Date.now();
       await setDoc(doc(database, "users", user.uid, "shelves", id), { name: display, createdAt, uid: user.uid });
       rememberOpen(user.uid, id);
-      return { id, name: display, createdAt };
+      return ownedShelf(id, display, createdAt, user.uid, displayName(user));
     },
     async renameShelf(id, name) {
       const display = cleanShelfName(name);
@@ -343,10 +402,13 @@ export function createFirebaseBackend(): Backend {
         localRename(guestOwner(), id, display);
         return;
       }
+      await requireOwned(user, id);
       const ref = doc(database, "users", user.uid, "shelves", id);
-      const existing = await getDoc(ref);
-      if (!existing.exists()) throw new Error("That shelf is not here.");
       await setDoc(ref, { name: display }, { merge: true });
+      const people = await getDocs(collection(database, "users", user.uid, "shelves", id, "viewers"));
+      for (const person of people.docs) {
+        await setDoc(doc(database, "inbox", person.id, "shelves", shareDocId(user.uid, id)), { shelfName: display }, { merge: true });
+      }
     },
     async deleteShelf(id) {
       const { auth: current, db: database } = services();
@@ -355,9 +417,14 @@ export function createFirebaseBackend(): Backend {
         localDelete(guestOwner(), id);
         return;
       }
+      await requireOwned(user, id);
       const shelves = await remoteShelves(user);
       if (shelves.length < 2) throw new Error("Keep at least one shelf.");
-      if (!shelves.some((shelf) => shelf.id === id)) throw new Error("That shelf is not here.");
+      const people = await getDocs(collection(database, "users", user.uid, "shelves", id, "viewers"));
+      for (const person of people.docs) {
+        await deleteDoc(person.ref);
+        await deleteDoc(doc(database, "inbox", person.id, "shelves", shareDocId(user.uid, id)));
+      }
       const books = await getDocs(collection(database, "users", user.uid, "shelves", id, "books"));
       for (const item of books.docs) await deleteDoc(item.ref);
       await deleteDoc(doc(database, "users", user.uid, "shelves", id));
@@ -376,8 +443,7 @@ export function createFirebaseBackend(): Backend {
       if (!hit.id.startsWith("/works/") || !hit.title.trim()) throw new Error("That book could not be saved.");
       const { db: database } = services();
       const shelves = await remoteShelves(user);
-      const currentShelf = shelfId ? shelves.find((shelf) => shelf.id === shelfId) : chosenShelf(user.uid, shelves);
-      if (!currentShelf) throw new Error("That shelf is not here.");
+      const currentShelf = shelfId ? await requireOwned(user, shelfId) : chosenShelf(user.uid, shelves);
       const ref = doc(database, "users", user.uid, "shelves", currentShelf.id, "books", bookDocId(hit.id));
       if ((await getDoc(ref)).exists()) return;
       const name = user.displayName?.trim() || "Reader";
@@ -392,14 +458,17 @@ export function createFirebaseBackend(): Backend {
         return;
       }
       const shelves = await remoteShelves(user);
-      const currentShelf = shelfId ? shelves.find((shelf) => shelf.id === shelfId) : chosenShelf(user.uid, shelves);
-      if (!currentShelf) throw new Error("That shelf is not here.");
+      const currentShelf = shelfId ? await requireOwned(user, shelfId) : chosenShelf(user.uid, shelves);
       await deleteDoc(doc(database, "users", user.uid, "shelves", currentShelf.id, "books", bookDocId(id)));
     },
-    async books(shelfId) {
+    async books(shelfId, ownerId) {
       const { auth: current, db: database } = services();
       const user = current.currentUser;
-      if (!user) return localBooks(guestOwner(), shelfId);
+      if (!user) return localBooks(guestOwner(), shelfId, ownerId);
+      if (ownerId && ownerId !== user.uid) {
+        if (!shelfId) throw new Error("That shelf is not here.");
+        return sharedBooks(ownerId, shelfId);
+      }
       const shelves = await remoteShelves(user);
       const currentShelf = shelfId ? shelves.find((shelf) => shelf.id === shelfId) : chosenShelf(user.uid, shelves);
       if (!currentShelf) throw new Error("That shelf is not here.");
@@ -409,7 +478,108 @@ export function createFirebaseBackend(): Backend {
         return book ? [book] : [];
       });
     },
+    async shareShelf(shelfId, email) {
+      const { auth: current } = services();
+      const user = current.currentUser;
+      if (!user) throw new Error("Sign in to share a shelf.");
+      try {
+        return await grantShelf(user, shelfId, email);
+      } catch (error) {
+        throw friendly(error);
+      }
+    },
+    async viewers(shelfId) {
+      const { auth: current } = services();
+      const user = current.currentUser;
+      if (!user) throw new Error("Sign in to share a shelf.");
+      try {
+        return await listViewers(user, shelfId);
+      } catch (error) {
+        throw friendly(error);
+      }
+    },
+    async unshareShelf(shelfId, viewerId) {
+      const { auth: current } = services();
+      const user = current.currentUser;
+      if (!user) throw new Error("Sign in to share a shelf.");
+      try {
+        await revokeShelf(user, shelfId, viewerId);
+      } catch (error) {
+        throw friendly(error);
+      }
+    },
   };
+}
+
+async function requireOwned(user: User, shelfId: string): Promise<BookShelf> {
+  const shelves = await remoteShelves(user);
+  const shelf = shelves.find((item) => item.id === shelfId);
+  if (shelf) return shelf;
+  const shared = await remoteShared(user);
+  if (shared.some((item) => item.id === shelfId)) throw new Error(VIEW_ONLY);
+  throw new Error("That shelf is not here.");
+}
+
+async function sharedBooks(ownerId: string, shelfId: string): Promise<ShelfBook[]> {
+  const { db: database } = services();
+  try {
+    const shelf = await getDoc(doc(database, "users", ownerId, "shelves", shelfId));
+    if (!shelf.exists()) throw new Error("That shelf is not here.");
+    const snap = await getDocs(query(collection(database, "users", ownerId, "shelves", shelfId, "books"), orderBy("savedAt", "desc")));
+    return snap.docs.flatMap((item) => {
+      const book = readBook(item.id, item.data());
+      return book ? [book] : [];
+    });
+  } catch (error) {
+    throw friendly(error);
+  }
+}
+
+async function grantShelf(user: User, shelfId: string, email: string): Promise<ShelfViewer> {
+  const address = shareAddress(email);
+  if (user.email && address === user.email.trim().toLowerCase()) throw new Error("That shelf is already yours.");
+  const { db: database } = services();
+  const shelf = await requireOwned(user, shelfId);
+  const found = await getDoc(doc(database, "directory", address));
+  if (!found.exists()) throw new Error("No account uses that email yet. They need to sign in on Armarium before you can share with them.");
+  const data = found.data();
+  const viewerId = typeof data.uid === "string" ? data.uid : "";
+  const viewerName = typeof data.name === "string" && data.name.trim() ? data.name.trim() : "Reader";
+  if (!viewerId || viewerId === user.uid) throw new Error("That shelf is already yours.");
+  const current = await getDocs(collection(database, "users", user.uid, "shelves", shelfId, "viewers"));
+  if (current.size >= 20 && !current.docs.some((item) => item.id === viewerId)) {
+    throw new Error("This shelf is already shared with 20 people.");
+  }
+  await setDoc(doc(database, "users", user.uid, "shelves", shelfId, "viewers", viewerId), { email: address, name: viewerName });
+  await setDoc(doc(database, "inbox", viewerId, "shelves", shareDocId(user.uid, shelfId)), {
+    ownerUid: user.uid,
+    ownerName: displayName(user),
+    viewerUid: viewerId,
+    shelfId,
+    shelfName: shelf.name,
+    sharedAt: Date.now(),
+  });
+  return { id: viewerId, name: viewerName, email: address };
+}
+
+async function listViewers(user: User, shelfId: string): Promise<ShelfViewer[]> {
+  await requireOwned(user, shelfId);
+  const { db: database } = services();
+  const snap = await getDocs(collection(database, "users", user.uid, "shelves", shelfId, "viewers"));
+  return snap.docs.flatMap((item) => {
+    const data = item.data();
+    const email = typeof data.email === "string" ? data.email : "";
+    const name = typeof data.name === "string" ? data.name : "Reader";
+    if (!email) return [];
+    return [{ id: item.id, name, email }];
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function revokeShelf(user: User, shelfId: string, viewerId: string): Promise<void> {
+  await requireOwned(user, shelfId);
+  const { db: database } = services();
+  await deleteDoc(doc(database, "users", user.uid, "shelves", shelfId, "viewers", viewerId));
+  await deleteDoc(doc(database, "inbox", viewerId, "shelves", shareDocId(user.uid, shelfId)));
 }
 
 const LOCAL_KEY = "shelf-local-v1";
@@ -434,17 +604,26 @@ interface LocalBook extends ShelfBook {
   shelfId: string;
 }
 
+interface LocalShare {
+  ownerId: string;
+  shelfId: string;
+  viewerId: string;
+  viewerEmail: string;
+  viewerName: string;
+}
+
 interface LocalState {
   users: LocalUser[];
   session: string | null;
   guestId: string;
   shelves: LocalShelf[];
   books: LocalBook[];
+  shares: LocalShare[];
   active: Record<string, string>;
 }
 
 function blankLocal(): LocalState {
-  return { users: [], session: null, guestId: "", shelves: [], books: [], active: {} };
+  return { users: [], session: null, guestId: "", shelves: [], books: [], shares: [], active: {} };
 }
 
 function readLocal(): LocalState {
@@ -458,6 +637,13 @@ function readLocal(): LocalState {
       guestId: typeof parsed.guestId === "string" ? parsed.guestId : "",
       shelves: Array.isArray(parsed.shelves) ? parsed.shelves : [],
       books: parsed.books.map((book) => ({ ...book, shelfId: typeof book.shelfId === "string" ? book.shelfId : "" })),
+      shares: Array.isArray(parsed.shares) ? parsed.shares.flatMap((share) => {
+        if (!share || typeof share !== "object") return [];
+        const item = share as Partial<LocalShare>;
+        if (typeof item.ownerId !== "string" || typeof item.shelfId !== "string" || typeof item.viewerId !== "string") return [];
+        if (typeof item.viewerEmail !== "string" || typeof item.viewerName !== "string") return [];
+        return [{ ownerId: item.ownerId, shelfId: item.shelfId, viewerId: item.viewerId, viewerEmail: item.viewerEmail, viewerName: item.viewerName }];
+      }) : [],
       active: parsed.active && typeof parsed.active === "object" ? parsed.active : {},
     };
     let changed = !Array.isArray(parsed.shelves) || parsed.books.some((book) => typeof book.shelfId !== "string");
@@ -501,6 +687,15 @@ function ensureOwnerShelf(state: LocalState, owner: string): LocalShelf {
   return shelf;
 }
 
+function personName(state: LocalState, id: string): string {
+  if (id === state.guestId) return "Guest";
+  return state.users.find((user) => user.id === id)?.name || "Reader";
+}
+
+function asOwned(state: LocalState, shelf: LocalShelf): BookShelf {
+  return ownedShelf(shelf.id, shelf.name, shelf.createdAt, shelf.owner, personName(state, shelf.owner));
+}
+
 function ownerShelves(owner: string): BookShelf[] {
   const state = ensureGuest(readLocal());
   ensureOwnerShelf(state, owner);
@@ -508,11 +703,31 @@ function ownerShelves(owner: string): BookShelf[] {
   return state.shelves
     .filter((shelf) => shelf.owner === owner)
     .sort((a, b) => a.createdAt - b.createdAt || a.name.localeCompare(b.name))
-    .map(({ id, name, createdAt }) => ({ id, name, createdAt }));
+    .map((shelf) => asOwned(state, shelf));
 }
 
 function localShelves(owner: string): BookShelf[] {
-  return ownerShelves(owner);
+  const state = readLocal();
+  const shared = state.shares.filter((share) => share.viewerId === owner).flatMap((share) => {
+    const shelf = state.shelves.find((item) => item.owner === share.ownerId && item.id === share.shelfId);
+    if (!shelf) return [];
+    return [{
+      id: shelf.id,
+      name: shelf.name,
+      createdAt: shelf.createdAt,
+      ownerId: shelf.owner,
+      ownerName: personName(state, shelf.owner),
+      access: "viewer" as const,
+    }];
+  }).sort((a, b) => a.name.localeCompare(b.name));
+  return [...ownerShelves(owner), ...shared];
+}
+
+function assertCanChange(owner: string, shelfId: string) {
+  const state = readLocal();
+  if (state.shelves.some((shelf) => shelf.owner === owner && shelf.id === shelfId)) return;
+  if (state.shares.some((share) => share.viewerId === owner && share.shelfId === shelfId)) throw new Error(VIEW_ONLY);
+  throw new Error("That shelf is not here.");
 }
 
 function localActive(owner: string): BookShelf {
@@ -537,10 +752,11 @@ function localCreate(owner: string, name: string): BookShelf {
   state.shelves.push(shelf);
   state.active[owner] = shelf.id;
   writeLocal(state);
-  return { id: shelf.id, name: shelf.name, createdAt: shelf.createdAt };
+  return asOwned(state, shelf);
 }
 
 function localRename(owner: string, id: string, name: string) {
+  assertCanChange(owner, id);
   const state = ensureGuest(readLocal());
   const shelf = state.shelves.find((item) => item.owner === owner && item.id === id);
   if (!shelf) throw new Error("That shelf is not here.");
@@ -549,12 +765,13 @@ function localRename(owner: string, id: string, name: string) {
 }
 
 function localDelete(owner: string, id: string) {
+  assertCanChange(owner, id);
   const state = ensureGuest(readLocal());
   const owned = state.shelves.filter((shelf) => shelf.owner === owner);
   if (owned.length < 2) throw new Error("Keep at least one shelf.");
-  if (!owned.some((shelf) => shelf.id === id)) throw new Error("That shelf is not here.");
   state.shelves = state.shelves.filter((shelf) => !(shelf.owner === owner && shelf.id === id));
   state.books = state.books.filter((book) => !(book.owner === owner && book.shelfId === id));
+  state.shares = state.shares.filter((share) => !(share.ownerId === owner && share.shelfId === id));
   if (state.active[owner] === id) {
     const next = state.shelves.find((shelf) => shelf.owner === owner);
     if (next) state.active[owner] = next.id;
@@ -565,18 +782,60 @@ function localDelete(owner: string, id: string) {
 function chosenLocalShelf(owner: string, shelfId?: string): string {
   const shelves = ownerShelves(owner);
   if (shelfId) {
-    if (!shelves.some((shelf) => shelf.id === shelfId)) throw new Error("That shelf is not here.");
+    assertCanChange(owner, shelfId);
     return shelfId;
   }
   const state = readLocal();
   return shelves.some((shelf) => shelf.id === state.active[owner]) ? state.active[owner] : shelves[0].id;
 }
 
-function localBooks(owner: string, shelfId?: string): ShelfBook[] {
+function localBooks(owner: string, shelfId?: string, ownerId?: string): ShelfBook[] {
+  if (ownerId && ownerId !== owner) {
+    const state = readLocal();
+    const allowed = Boolean(shelfId) && state.shares.some((share) => share.viewerId === owner && share.ownerId === ownerId && share.shelfId === shelfId);
+    if (!allowed || !shelfId) throw new Error("That shelf is not here.");
+    return state.books
+      .filter((book) => book.owner === ownerId && book.shelfId === shelfId)
+      .sort((a, b) => b.savedAt - a.savedAt);
+  }
   const id = chosenLocalShelf(owner, shelfId);
   return readLocal()
     .books.filter((book) => book.owner === owner && book.shelfId === id)
     .sort((a, b) => b.savedAt - a.savedAt);
+}
+
+function localViewers(owner: string, shelfId: string): ShelfViewer[] {
+  assertCanChange(owner, shelfId);
+  return readLocal().shares
+    .filter((share) => share.ownerId === owner && share.shelfId === shelfId)
+    .map((share) => ({ id: share.viewerId, name: share.viewerName, email: share.viewerEmail }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function localShare(owner: string, shelfId: string, email: string): ShelfViewer {
+  const address = shareAddress(email);
+  const state = ensureGuest(readLocal());
+  const me = state.users.find((user) => user.id === owner);
+  if (!me) throw new Error("Sign in to share a shelf.");
+  if (address === me.email.toLowerCase()) throw new Error("That shelf is already yours.");
+  assertCanChange(owner, shelfId);
+  const other = state.users.find((user) => user.email.toLowerCase() === address);
+  if (!other) throw new Error("No account uses that email yet. They need to sign in on Armarium before you can share with them.");
+  const mine = state.shares.filter((share) => share.ownerId === owner && share.shelfId === shelfId);
+  if (mine.length >= 20 && !mine.some((share) => share.viewerId === other.id)) {
+    throw new Error("This shelf is already shared with 20 people.");
+  }
+  state.shares = state.shares.filter((share) => !(share.ownerId === owner && share.shelfId === shelfId && share.viewerId === other.id));
+  state.shares.push({ ownerId: owner, shelfId, viewerId: other.id, viewerEmail: address, viewerName: other.name });
+  writeLocal(state);
+  return { id: other.id, name: other.name, email: address };
+}
+
+function localUnshare(owner: string, shelfId: string, viewerId: string) {
+  assertCanChange(owner, shelfId);
+  const state = ensureGuest(readLocal());
+  state.shares = state.shares.filter((share) => !(share.ownerId === owner && share.shelfId === shelfId && share.viewerId === viewerId));
+  writeLocal(state);
 }
 
 function localSave(owner: string, hit: LibraryHit, shelfId?: string) {
@@ -613,7 +872,7 @@ function takeGuestLibrary(): { shelves: BookShelf[]; books: (ShelfBook & { shelf
   const state = ensureGuest(readLocal());
   const owner = state.guestId;
   ensureOwnerShelf(state, owner);
-  const shelves = state.shelves.filter((shelf) => shelf.owner === owner).map(({ id, name, createdAt }) => ({ id, name, createdAt }));
+  const shelves = state.shelves.filter((shelf) => shelf.owner === owner).map((shelf) => asOwned(state, shelf));
   const books = state.books.filter((book) => book.owner === owner).map(({ owner: _owner, ...book }) => book);
   state.shelves = state.shelves.filter((shelf) => shelf.owner !== owner);
   state.books = state.books.filter((book) => book.owner !== owner);
@@ -743,8 +1002,17 @@ export function createLocalBackend(): Backend {
     async removeBook(id, shelfId) {
       localRemove(current().id, id, shelfId);
     },
-    async books(shelfId) {
-      return localBooks(current().id, shelfId);
+    async books(shelfId, ownerId) {
+      return localBooks(current().id, shelfId, ownerId);
+    },
+    async shareShelf(shelfId, email) {
+      return localShare(current().id, shelfId, email);
+    },
+    async viewers(shelfId) {
+      return localViewers(current().id, shelfId);
+    },
+    async unshareShelf(shelfId, viewerId) {
+      localUnshare(current().id, shelfId, viewerId);
     },
   };
 }
@@ -784,7 +1052,10 @@ function createResilientBackend(): Backend {
     deleteShelf: (id) => active.deleteShelf(id),
     saveBook: (hit, shelfId) => active.saveBook(hit, shelfId),
     removeBook: (id, shelfId) => active.removeBook(id, shelfId),
-    books: (shelfId) => active.books(shelfId),
+    books: (shelfId, ownerId) => active.books(shelfId, ownerId),
+    shareShelf: (shelfId, email) => active.shareShelf(shelfId, email),
+    viewers: (shelfId) => active.viewers(shelfId),
+    unshareShelf: (shelfId, viewerId) => active.unshareShelf(shelfId, viewerId),
   };
 }
 
