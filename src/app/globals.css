@@ -536,6 +536,17 @@ h1 {
 .detail h1 { margin: 0; font-size: 52px; text-align: left; max-width: none; }
 .detail .cover, .detail .cover-fallback { width: 180px; height: 270px; }
 .detail .byline { margin: 8px 0 0; color: var(--muted); }
+.detail .save-book {
+  margin-top: 16px;
+  height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  font-size: 15px;
+}
 .detail .summary { margin: 16px 0 0; font-size: 17px; line-height: 1.55; }
 .detail section { margin-top: 22px; }
 .detail h2 { margin: 0; font-family: var(--font-display), Georgia, serif; font-size: 26px; font-weight: 500; }

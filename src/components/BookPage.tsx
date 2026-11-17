@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { BookFacts, Cover } from "./library";
+import { BookFacts, Cover, ShelfPicker } from "./library";
 import { bookHref, loadBookPage, seriesPlace, type BookLink, type BookPageInfo, type RelatedBook } from "../lib/details";
 
 export function BookPage() {
@@ -13,12 +13,14 @@ export function BookPage() {
   const [page, setPage] = useState<BookPageInfo | null>(null);
   const [settled, setSettled] = useState(false);
   const [state, setState] = useState("Opening the book…");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     const controller = new AbortController();
     setPage(null);
     setSettled(false);
+    setSaving(false);
     setState("Opening the book…");
     loadBookPage(id, controller.signal, fetch, Number.isInteger(cover) && cover > 0 ? cover : null, (partial) => {
       if (!controller.signal.aborted) setPage(partial);
@@ -47,6 +49,8 @@ export function BookPage() {
       <div>
         <h1>{book.title}</h1>
         {book.author ? <p className="byline">{book.author}{book.year ? ` · ${book.year}` : ""}</p> : null}
+        <button type="button" className="save-book" onClick={() => setSaving(true)}>Add to a shelf</button>
+        {saving ? <ShelfPicker hit={book} onClose={() => setSaving(false)} /> : null}
         {page.series ? <p className="series-place">{seriesPlace(page.series.name, page.series.position)}</p> : settled ? <p className="series-place">This book is not part of a series.</p> : null}
         {page.series?.summary ? <p className="summary">{page.series.summary}</p> : null}
         {page.series ? <LinkList links={page.series.links} /> : null}

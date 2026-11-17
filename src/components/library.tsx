@@ -127,7 +127,7 @@ export function HitSection({
   );
 }
 
-function ShelfPicker({ hit, onClose }: { hit: LibraryHit; onClose: () => void }) {
+export function ShelfPicker({ hit, onClose }: { hit: LibraryHit; onClose: () => void }) {
   const { backend, shelves, refreshShelves } = useShelf();
   const [draft, setDraft] = useState("");
   const [status, setStatus] = useState("");
