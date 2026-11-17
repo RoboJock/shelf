@@ -369,6 +369,10 @@ h1 {
   width: 248px;
   height: 164px;
   perspective: 980px;
+  /* Paper, type bars, and the board stay the light-mode colors in every theme. */
+  --field: #faf6ef;
+  --ink: #241c16;
+  --accent: #8d3428;
   filter: drop-shadow(0 14px 18px color-mix(in srgb, var(--ink) 18%, transparent));
 }
 .folio-board {

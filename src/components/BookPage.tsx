@@ -120,7 +120,7 @@ function BookSummary({ text }: { text: string }) {
     <p className="summary">
       {open ? text : preview}{" "}
       <button type="button" className="summary-more" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-        {open ? "Show less" : "Show the rest"}
+        {open ? "Show less" : "Show more"}
       </button>
     </p>
   );
