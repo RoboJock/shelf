@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { createBackend, type AppUser, type Backend, type BookShelf } from "../lib/backend";
 
@@ -58,7 +58,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav>
           <div className="nav-left">
             <Link href="/" className="mark">Shelf</Link>
-            <Link href="/search" className="nav-link" aria-current={pathname === "/search" ? "page" : undefined}>Search</Link>
+            <div className="nav-links">
+              <Link href="/search" className="nav-link" aria-current={pathname === "/search" ? "page" : undefined}>Search</Link>
+              <ShelvesMenu />
+            </div>
           </div>
           <div className="nav-right">
             <button
@@ -80,7 +83,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </nav>
         <div className="workspace">
-          <ShelfRail />
           <div className="desk">{children}</div>
         </div>
       </main>
@@ -88,59 +90,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ShelfRail() {
-  const { shelves, backend, refreshShelves } = useShelf();
+function ShelvesMenu() {
   const pathname = usePathname();
-  const params = useSearchParams();
-  const router = useRouter();
-  const openId = pathname === "/shelf" ? params.get("id") : null;
-  const [creating, setCreating] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [status, setStatus] = useState("");
+  const { shelves } = useShelf();
 
   return (
-    <aside className="rail">
-      <p>Shelves</p>
-      <ul>
-        {shelves.map((shelf) => (
-          <li key={shelf.id}>
-            <Link href={`/shelf?id=${encodeURIComponent(shelf.id)}`} className={shelf.id === openId ? "on" : undefined}>
-              {shelf.name}
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {creating ? (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            setStatus("");
-            void backend.createShelf(draft).then((shelf) => {
-              setCreating(false);
-              setDraft("");
-              refreshShelves();
-              router.push(`/shelf?id=${encodeURIComponent(shelf.id)}`);
-            }).catch((error: unknown) => {
-              setStatus(error instanceof Error ? error.message : "Could not create that shelf.");
-            });
-          }}
-        >
-          <input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            aria-label="New shelf name"
-            placeholder="Name"
-            maxLength={40}
-            required
-            autoFocus
-          />
-          <button type="submit">Add</button>
-        </form>
-      ) : (
-        <button type="button" className="rail-add" onClick={() => { setCreating(true); setDraft(""); }}>New shelf</button>
-      )}
-      {status ? <p className="rail-status">{status}</p> : null}
-    </aside>
+    <div className="nav-menu">
+      <Link href="/shelf" className="nav-link" aria-current={pathname === "/shelf" ? "page" : undefined}>Shelves</Link>
+      <div className="nav-pop" role="navigation" aria-label="Your shelves">
+        {shelves.length > 0 ? (
+          <ul>
+            {shelves.map((shelf) => (
+              <li key={shelf.id}>
+                <Link href={`/shelf?id=${encodeURIComponent(shelf.id)}`}>{shelf.name}</Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No shelves yet.</p>
+        )}
+      </div>
+    </div>
   );
 }
 

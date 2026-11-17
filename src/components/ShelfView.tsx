@@ -58,7 +58,7 @@ export function ShelfView() {
     };
   }, [orderOpen]);
 
-  if (!id) return <p className="status">Choose a shelf.</p>;
+  if (!id) return <ShelfIndex />;
   if (!shelvesReady) return <p className="status">Loading the shelf…</p>;
   if (!shelf) return <p className="status">That shelf is not here.</p>;
 
@@ -182,6 +182,65 @@ export function ShelfView() {
           ))}
         </div>
       )}
+    </>
+  );
+}
+
+function ShelfIndex() {
+  const { backend, shelves, shelvesReady, refreshShelves } = useShelf();
+  const router = useRouter();
+  const [creating, setCreating] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [status, setStatus] = useState("");
+
+  if (!shelvesReady) return <p className="status">Loading the shelves…</p>;
+
+  return (
+    <>
+      <h1>Shelves</h1>
+      {shelves.length === 0 ? <p className="lede">You have not made a shelf yet.</p> : (
+        <ul className="shelf-index">
+          {shelves.map((shelf) => (
+            <li key={shelf.id}>
+              <Link href={`/shelf?id=${encodeURIComponent(shelf.id)}`}>{shelf.name}</Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="shelf-index-add">
+        {creating ? (
+          <form
+            className="shelf-entry"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setStatus("");
+              void backend.createShelf(draft).then((shelf) => {
+                setCreating(false);
+                setDraft("");
+                refreshShelves();
+                router.push(`/shelf?id=${encodeURIComponent(shelf.id)}`);
+              }).catch((error: unknown) => {
+                setStatus(error instanceof Error ? error.message : "Could not create that shelf.");
+              });
+            }}
+          >
+            <input
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              aria-label="New shelf name"
+              placeholder="Name"
+              maxLength={40}
+              required
+              autoFocus
+            />
+            <button type="submit">Add</button>
+            <button type="button" className="quiet" onClick={() => setCreating(false)}>Cancel</button>
+          </form>
+        ) : (
+          <button type="button" className="shelf-add" onClick={() => { setCreating(true); setDraft(""); }}>New shelf</button>
+        )}
+      </div>
+      {status ? <p className="status">{status}</p> : null}
     </>
   );
 }
