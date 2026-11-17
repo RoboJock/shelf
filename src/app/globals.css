@@ -73,6 +73,7 @@ nav {
   padding: 4px 0 6px;
   background: var(--field);
   border: 1px solid var(--ink);
+  border-top: 0;
   border-radius: 0 0 8px 8px;
   box-shadow: 0 14px 28px rgba(36, 28, 22, 0.12);
   z-index: 8;
