@@ -60,8 +60,7 @@ nav {
   display: none;
   position: absolute;
   top: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
   min-width: 168px;
   max-width: 240px;
   padding: 6px;
