@@ -20,6 +20,7 @@ export function ShelfView() {
   const owned = shelves.filter((item) => item.access !== "viewer");
   const canEdit = shelf?.access !== "viewer";
   const [books, setBooks] = useState<ShelfBook[]>([]);
+  const [booksReady, setBooksReady] = useState(false);
   const [status, setStatus] = useState("");
   const [order, setOrder] = useState<ShelfOrder>("newest");
   const [orderOpen, setOrderOpen] = useState(false);
@@ -32,10 +33,12 @@ export function ShelfView() {
   useEffect(() => {
     if (!id) return;
     let cancel = false;
+    setBooksReady(false);
     setStatus("");
     backend.books(id, owner || undefined).then((next) => {
       if (cancel) return;
       setBooks(next);
+      setBooksReady(true);
       void enrichBooks(next).then((richer) => {
         if (!cancel) setBooks(richer);
       });
@@ -155,13 +158,27 @@ export function ShelfView() {
       {status ? <p className="status" role="status">{status}</p> : null}
       {books.length === 0 ? (
         <>
-          <div className="books" aria-hidden="true">
-            {Array.from({ length: 4 }, (_, index) => (
-              <div className="book-slot" key={index}>
-                <div className="cover-slot" />
-              </div>
-            ))}
-          </div>
+          {booksReady ? (
+            <div className="books">
+              {Array.from({ length: 4 }, (_, index) => (
+                <div className="book-slot" key={index}>
+                  <Link href="/search" className="cover-slot empty-book" aria-label="Find a book">
+                    <svg className="empty-plus" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 4.5v15M4.5 12h15" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="books" aria-hidden="true">
+              {Array.from({ length: 4 }, (_, index) => (
+                <div className="book-slot" key={index}>
+                  <div className="cover-slot" />
+                </div>
+              ))}
+            </div>
+          )}
           <p className="empty">{canEdit ? "Nothing saved on this shelf yet. Search a book to add it." : "Nothing saved on this shelf yet."}</p>
         </>
       ) : (

@@ -665,6 +665,22 @@ h1 {
   border: 1.5px dotted var(--muted);
   background: var(--bg);
 }
+a.cover-slot {
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  text-decoration: none;
+}
+a.cover-slot:hover,
+a.cover-slot:focus-visible {
+  border-color: var(--ink);
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+.empty-plus {
+  width: 44px;
+  height: 44px;
+}
 .cover, .cover-fallback {
   width: 156px;
   height: 234px;
