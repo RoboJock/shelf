@@ -164,7 +164,7 @@ export function ShelfView() {
                 <div className="book-slot" key={index}>
                   <Link href="/search" className="cover-slot empty-book" aria-label="Find a book">
                     <svg className="empty-plus" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M12 4.5v15M4.5 12h15" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                      <path d="M12 5.5v13M5.5 12h13" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
                     </svg>
                   </Link>
                 </div>

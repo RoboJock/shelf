@@ -673,13 +673,17 @@ a.cover-slot {
 }
 a.cover-slot:hover,
 a.cover-slot:focus-visible {
-  border-color: var(--ink);
-  outline: 2px solid var(--ink);
-  outline-offset: 3px;
+  border-color: var(--muted);
+  outline: none;
 }
 .empty-plus {
-  width: 44px;
-  height: 44px;
+  width: 28px;
+  height: 28px;
+  color: var(--ink);
+}
+a.cover-slot:hover .empty-plus,
+a.cover-slot:focus-visible .empty-plus {
+  color: var(--accent);
 }
 .cover, .cover-fallback {
   width: 156px;
