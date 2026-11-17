@@ -12,7 +12,7 @@ export function HomeDesk() {
   return (
     <>
       <h1>What are you reading?</h1>
-      <p className="lede">Search for a book, then add it to a shelf.</p>
+      <p className="lede">Search for a title or an author, then add it to a shelf.</p>
       {backend.mode === "local" ? (
         <p className="banner">
           {config

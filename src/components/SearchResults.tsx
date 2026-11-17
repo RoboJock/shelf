@@ -8,6 +8,7 @@ import { bookHref, type RelatedBook } from "../lib/details";
 import { enrichBooks } from "../lib/google-books";
 import { findBooks } from "../lib/search";
 import { loadAuthorRecommendations } from "../lib/suggestions";
+import { HomeDesk } from "./HomeDesk";
 import { Cover, HitSection } from "./library";
 import { SearchBox } from "./SearchBox";
 
@@ -72,6 +73,8 @@ export function SearchResults() {
       });
     return () => controller.abort();
   }, [seed]);
+
+  if (!submitted) return <HomeDesk />;
 
   return (
     <>

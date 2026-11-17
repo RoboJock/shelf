@@ -1,5 +1,5 @@
-import { HomeDesk } from "../components/HomeDesk";
+import { ShelfHome } from "../components/ShelfHome";
 
 export default function Page() {
-  return <HomeDesk />;
+  return <ShelfHome />;
 }
