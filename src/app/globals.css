@@ -78,6 +78,7 @@ nav {
   z-index: 8;
 }
 .nav-menu.open .nav-pop { display: block; }
+.nav-pop.catalog { max-width: 320px; }
 .nav-pop ul { list-style: none; margin: 0; padding: 0; }
 .nav-pop a {
   display: block;

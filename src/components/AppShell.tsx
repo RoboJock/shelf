@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { createBackend, shelfHref, type AppUser, type Backend, type BookShelf } from "../lib/backend";
+import { publicHref, publicShelves } from "../lib/public-shelves";
 
 interface ShelfContextValue {
   backend: Backend;
@@ -62,6 +63,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="nav-links">
               <Link href="/search" className="nav-link" aria-current={pathname === "/search" ? "page" : undefined}>Search</Link>
               <ShelvesMenu />
+              <PublicShelvesMenu />
             </div>
           </div>
           <div className="nav-right">
@@ -117,7 +119,7 @@ function ShelvesMenu() {
         onFocus={() => setOpen(true)}
         onClick={() => setOpen(false)}
       >
-        Shelves
+        Your Shelves
       </Link>
       <div className="nav-pop" role="navigation" aria-label="Your shelves">
         {shelves.length > 0 ? (
@@ -134,6 +136,46 @@ function ShelvesMenu() {
         ) : (
           <p>No shelves yet.</p>
         )}
+      </div>
+    </div>
+  );
+}
+
+function PublicShelvesMenu() {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  return (
+    <div
+      className={open ? "nav-menu open" : "nav-menu"}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+    >
+      <Link
+        href="/public"
+        className="nav-link"
+        aria-current={pathname === "/public" ? "page" : undefined}
+        aria-expanded={open}
+        onFocus={() => setOpen(true)}
+        onClick={() => setOpen(false)}
+      >
+        Public Shelves
+      </Link>
+      <div className="nav-pop catalog" role="navigation" aria-label="Public shelves">
+        <ul>
+          {publicShelves.map((shelf) => (
+            <li key={shelf.id}>
+              <Link href={publicHref(shelf.id)} onClick={() => setOpen(false)}>{shelf.name}</Link>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
