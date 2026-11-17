@@ -835,6 +835,23 @@ a.cover-slot:focus-visible .empty-plus {
   padding: 0 12px;
   font-size: 16px;
 }
+.account .secret { position: relative; display: block; }
+.account .secret input { width: 100%; padding-right: 42px; }
+.account .secret button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+.account .secret button:hover,
+.account .secret button:focus-visible { color: var(--ink); }
+.account .secret svg { width: 20px; height: 20px; display: block; margin: 0 auto; }
 
 .shelf-entry h2 {
   margin: 0;
