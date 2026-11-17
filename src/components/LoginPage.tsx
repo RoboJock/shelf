@@ -14,8 +14,9 @@ function Eye({ off }: { off: boolean }) {
   );
 }
 
-function PasswordField({ label, value, onChange, autoComplete, shown, onToggle }: {
+function PasswordField({ label, placeholder, value, onChange, autoComplete, shown, onToggle }: {
   label: string;
+  placeholder: string;
   value: string;
   onChange: (value: string) => void;
   autoComplete: string;
@@ -29,6 +30,7 @@ function PasswordField({ label, value, onChange, autoComplete, shown, onToggle }
         <input
           type={shown ? "text" : "password"}
           value={value}
+          placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
           required
           minLength={8}
@@ -100,22 +102,22 @@ export function LoginPage({ mode = "signin" }: { mode?: "signin" | "create" }) {
           {creating ? (
             <label>
               Display name
-              <input value={name} onChange={(event) => setName(event.target.value)} required minLength={2} maxLength={24} />
+              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" required minLength={2} maxLength={24} />
             </label>
           ) : null}
           <label>
             Email
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" />
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@email.com" required autoComplete="email" />
           </label>
           {creating ? (
             <>
-              <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="new-password" shown={showPassword} onToggle={() => setShowPassword((value) => !value)} />
-              <PasswordField label="Confirm password" value={confirm} onChange={setConfirm} autoComplete="new-password" shown={showConfirm} onToggle={() => setShowConfirm((value) => !value)} />
+              <PasswordField label="Password" placeholder="At least 8 characters" value={password} onChange={setPassword} autoComplete="new-password" shown={showPassword} onToggle={() => setShowPassword((value) => !value)} />
+              <PasswordField label="Confirm password" placeholder="Type it again" value={confirm} onChange={setConfirm} autoComplete="new-password" shown={showConfirm} onToggle={() => setShowConfirm((value) => !value)} />
             </>
           ) : (
             <label>
               Password
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={8} autoComplete="current-password" />
+              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" required minLength={8} autoComplete="current-password" />
             </label>
           )}
           <div className="actions">

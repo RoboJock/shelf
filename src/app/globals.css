@@ -835,6 +835,10 @@ a.cover-slot:focus-visible .empty-plus {
   padding: 0 12px;
   font-size: 16px;
 }
+.account input::placeholder {
+  color: var(--ink);
+  opacity: 0.38;
+}
 .account .secret { position: relative; display: block; }
 .account .secret input { width: 100%; padding-right: 42px; }
 .account .secret button {
