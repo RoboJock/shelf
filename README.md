@@ -1,4 +1,4 @@
-# Shelf
+# Armarium
 
 A reading shelf. Search Open Library, then keep the cover, author, and year.
 

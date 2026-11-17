@@ -8,7 +8,7 @@ const display = Newsreader({ subsets: ["latin"], variable: "--font-display" });
 const body = Source_Sans_3({ subsets: ["latin"], variable: "--font-body" });
 
 export const metadata: Metadata = {
-  title: "Shelf",
+  title: "Armarium",
   description: "Search Open Library and keep a shelf of books.",
 };
 

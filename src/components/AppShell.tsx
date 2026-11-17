@@ -17,7 +17,7 @@ const ShelfContext = createContext<ShelfContextValue | null>(null);
 
 export function useShelf(): ShelfContextValue {
   const value = useContext(ShelfContext);
-  if (!value) throw new Error("Shelf is still loading.");
+  if (!value) throw new Error("Armarium is still loading.");
   return value;
 }
 
@@ -57,7 +57,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="page">
         <nav>
           <div className="nav-left">
-            <Link href="/" className="mark">Shelf</Link>
+            <Link href="/" className="mark">Armarium</Link>
             <div className="nav-links">
               <Link href="/search" className="nav-link" aria-current={pathname === "/search" ? "page" : undefined}>Search</Link>
               <ShelvesMenu />
