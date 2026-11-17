@@ -22,6 +22,7 @@ export function useShelf(): ShelfContextValue {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const backend = useMemo<Backend>(() => createBackend(), []);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [user, setUser] = useState<AppUser | null>(null);
@@ -57,6 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav>
           <Link href="/" className="mark">Shelf</Link>
           <div className="nav-right">
+            <Link href="/search" className="who" aria-current={pathname === "/search" ? "page" : undefined}>Search</Link>
             <button
               type="button"
               className="theme-toggle"
