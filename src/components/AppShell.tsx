@@ -58,6 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav>
           <div className="nav-left">
             <Link href="/" className="mark">Armarium</Link>
+            <span className="nav-rule" aria-hidden="true" />
             <div className="nav-links">
               <Link href="/search" className="nav-link" aria-current={pathname === "/search" ? "page" : undefined}>Search</Link>
               <ShelvesMenu />

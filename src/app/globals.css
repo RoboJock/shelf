@@ -54,6 +54,12 @@ nav {
   border-bottom: 1px solid var(--line);
 }
 .nav-left { display: flex; align-items: center; gap: 64px; }
+.nav-rule {
+  width: 1px;
+  height: 28px;
+  background: var(--line);
+  flex: none;
+}
 .nav-links { display: flex; align-items: center; gap: 32px; }
 .nav-menu { position: relative; }
 .nav-pop {
