@@ -348,6 +348,151 @@ h1 {
 .home-books { display: flex; gap: 14px; margin-top: 12px; overflow-x: auto; padding-bottom: 4px; }
 .home-books .book { flex: 0 0 96px; width: 96px; }
 .home-books .cover, .home-books .cover-fallback { width: 96px; height: 144px; }
+.book-fetch {
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  margin: 56px auto 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+.book-fetch p { margin: 0; }
+.folio {
+  position: relative;
+  width: 248px;
+  height: 164px;
+  perspective: 980px;
+  filter: drop-shadow(0 14px 18px color-mix(in srgb, var(--ink) 18%, transparent));
+}
+.folio-board {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  border-radius: 4px 10px 10px 4px;
+}
+.folio-spread {
+  position: absolute;
+  inset: 8px 9px 9px 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.folio-sheet,
+.folio-face {
+  position: relative;
+  background-color: var(--field);
+  background-repeat: no-repeat;
+}
+.prose-settled {
+  background-image:
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose));
+  background-size:
+    78% 3px, 86% 3px, 62% 3px, 80% 3px,
+    70% 3px, 88% 3px, 54% 3px,
+    82% 3px, 74% 3px, 66% 3px;
+  background-position:
+    12px 18px, 12px 26px, 12px 34px, 12px 42px,
+    12px 58px, 12px 66px, 12px 74px,
+    12px 90px, 12px 98px, 12px 106px;
+}
+.prose-a {
+  background-image:
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose));
+  background-size:
+    84% 3px, 71% 3px, 90% 3px, 58% 3px,
+    76% 3px, 88% 3px, 64% 3px,
+    80% 3px, 52% 3px, 73% 3px;
+  background-position:
+    12px 16px, 12px 24px, 12px 32px, 12px 40px,
+    12px 56px, 12px 64px, 12px 72px,
+    12px 88px, 12px 96px, 12px 104px;
+}
+.prose-b {
+  background-image:
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose));
+  background-size:
+    68% 3px, 86% 3px, 77% 3px, 91% 3px,
+    60% 3px, 82% 3px, 74% 3px,
+    88% 3px, 63% 3px, 79% 3px;
+  background-position:
+    12px 18px, 12px 26px, 12px 34px, 12px 42px,
+    12px 58px, 12px 66px, 12px 74px,
+    12px 90px, 12px 98px, 12px 106px;
+}
+.prose-c {
+  background-image:
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose)),
+    linear-gradient(var(--prose), var(--prose)), linear-gradient(var(--prose), var(--prose));
+  background-size:
+    90% 3px, 64% 3px, 78% 3px, 85% 3px,
+    72% 3px, 56% 3px, 88% 3px,
+    69% 3px, 83% 3px, 61% 3px;
+  background-position:
+    12px 16px, 12px 24px, 12px 32px, 12px 40px,
+    12px 56px, 12px 64px, 12px 72px,
+    12px 88px, 12px 96px, 12px 104px;
+}
+.folio { --prose: color-mix(in srgb, var(--ink) 42%, transparent); }
+.folio-sheet.left { border-radius: 2px 0 0 2px; }
+.folio-sheet.right { border-radius: 0 2px 2px 0; }
+.folio-turn {
+  position: absolute;
+  z-index: 3;
+  top: 8px;
+  bottom: 9px;
+  left: 50%;
+  width: calc(50% - 9px);
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  animation: folio-next 2.1s linear infinite;
+}
+.folio-turn.two { animation-delay: -1.4s; }
+.folio-turn.three { animation-delay: -0.7s; }
+.folio-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 0 2px 2px 0;
+}
+.folio-face.back {
+  transform: rotateY(180deg);
+  border-radius: 2px 0 0 2px;
+}
+.folio-gutter {
+  position: absolute;
+  z-index: 4;
+  top: 8px;
+  bottom: 9px;
+  left: 50%;
+  width: 14px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ink) 22%, transparent), transparent);
+  pointer-events: none;
+}
+@keyframes folio-next {
+  0% { transform: rotateY(0deg); z-index: 6; }
+  33% { transform: rotateY(-180deg); z-index: 6; }
+  33.5% { transform: rotateY(0deg); z-index: 1; }
+  100% { transform: rotateY(0deg); z-index: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .folio-turn { animation: none; transform: rotateY(0deg); }
+  .folio-turn.two, .folio-turn.three { display: none; }
+}
 .banner, .status { color: var(--muted); font-size: 15px; }
 .banner { margin: 22px auto 0; max-width: 640px; }
 .status { margin: 14px auto 0; }

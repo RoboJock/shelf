@@ -12,7 +12,7 @@ export function BookPage() {
   const cover = Number(params.get("cover"));
   const [page, setPage] = useState<BookPageInfo | null>(null);
   const [settled, setSettled] = useState(false);
-  const [state, setState] = useState("Opening the book…");
+  const [state, setState] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -21,10 +21,8 @@ export function BookPage() {
     setPage(null);
     setSettled(false);
     setSaving(false);
-    setState("Opening the book…");
-    loadBookPage(id, controller.signal, fetch, Number.isInteger(cover) && cover > 0 ? cover : null, (partial) => {
-      if (!controller.signal.aborted) setPage(partial);
-    })
+    setState("");
+    loadBookPage(id, controller.signal, fetch, Number.isInteger(cover) && cover > 0 ? cover : null)
       .then((result) => {
         if (controller.signal.aborted) return;
         setPage(result);
@@ -33,12 +31,15 @@ export function BookPage() {
       })
       .catch((error) => {
         if (controller.signal.aborted) return;
+        setSettled(true);
+        setPage(null);
         setState(error instanceof Error ? error.message : "This book could not be opened.");
       });
     return () => controller.abort();
   }, [id, cover]);
 
   if (!id) return <p className="status">Choose a book from a search or a shelf.</p>;
+  if (!settled) return <BookFetch />;
   if (!page) return <p className="status">{state}</p>;
   const { book } = page;
 
@@ -80,6 +81,34 @@ export function BookPage() {
       </section>
     ) : null}
   </>
+  );
+}
+
+export function BookFetch() {
+  return (
+    <div className="book-fetch" role="status">
+      <div className="folio" aria-hidden="true">
+        <div className="folio-board" />
+        <div className="folio-spread">
+          <div className="folio-sheet left prose-settled" />
+          <div className="folio-sheet right prose-c" />
+        </div>
+        <div className="folio-turn one">
+          <span className="folio-face front prose-a" />
+          <span className="folio-face back prose-settled" />
+        </div>
+        <div className="folio-turn two">
+          <span className="folio-face front prose-b" />
+          <span className="folio-face back prose-settled" />
+        </div>
+        <div className="folio-turn three">
+          <span className="folio-face front prose-c" />
+          <span className="folio-face back prose-settled" />
+        </div>
+        <div className="folio-gutter" />
+      </div>
+      <p>fetching book information</p>
+    </div>
   );
 }
 
