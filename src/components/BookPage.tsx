@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BookFacts, Cover, ShelfPicker } from "./library";
-import { bookHref, loadBookPage, seriesPlace, type BookLink, type BookPageInfo, type RelatedBook } from "../lib/details";
+import { bookHref, loadBookPage, seriesPlace, summaryPreview, type BookLink, type BookPageInfo, type RelatedBook } from "../lib/details";
 
 export function BookPage() {
   const params = useSearchParams();
@@ -54,7 +54,7 @@ export function BookPage() {
         {page.series ? <p className="series-place">{seriesPlace(page.series.name, page.series.position)}</p> : settled ? <p className="series-place">This book is not part of a series.</p> : null}
         {page.series?.summary ? <p className="summary">{page.series.summary}</p> : null}
         {page.series ? <LinkList links={page.series.links} /> : null}
-        {page.summary ? <p className="summary">{page.summary}</p> : null}
+        {page.summary ? <BookSummary key={book.id} text={page.summary} /> : null}
         <BookFacts book={{ ...book, description: null }} />
         <LinkGroup title="Where to buy" links={page.purchase} />
         <LinkGroup title={book.author} links={page.authorLinks} />
@@ -80,6 +80,20 @@ export function BookPage() {
       </section>
     ) : null}
   </>
+  );
+}
+
+function BookSummary({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const { preview, rest } = summaryPreview(text);
+  if (!rest) return <p className="summary">{text}</p>;
+  return (
+    <p className="summary">
+      {open ? text : preview}{" "}
+      <button type="button" className="summary-more" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        {open ? "Show less" : "Show the rest"}
+      </button>
+    </p>
   );
 }
 

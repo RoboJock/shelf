@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chooseGenre, chooseRetail, isbn10, isCollection, loadBookPage, purchaseLinks, readLinks, readRelated, readStoreTitle, readText, sameBookTitle, seriesPlace, wikipediaUrl, type BookPageInfo } from "./details";
+import { chooseGenre, chooseRetail, isbn10, isCollection, loadBookPage, purchaseLinks, readLinks, readRelated, readStoreTitle, readText, sameBookTitle, seriesPlace, summaryPreview, wikipediaUrl, type BookPageInfo } from "./details";
 
 test("a work description can be a string or an object", () => {
   assert.equal(readText("A full summary of the book."), "A full summary of the book.");
@@ -159,6 +159,29 @@ test("genre suggestions prefer a named genre and skip collections", () => {
   assert.equal(seriesPlace("Harry Potter", "2"), "Book 2 of Harry Potter");
   const books = readRelated({ docs: [{ key: "/works/OL1W", title: "A real book", author_name: ["Ada"], cover_i: 4, first_publish_year: 1999 }] });
   assert.equal(books[0]?.coverId, 4);
+});
+
+test("a summary preview keeps the opening sentences", () => {
+  const three = "Circe is a nymph in the house of Helios. She is banished to an island of her own. The rest of her story follows the power she learns there.";
+  assert.deepEqual(summaryPreview(three), {
+    preview: "Circe is a nymph in the house of Helios. She is banished to an island of her own.",
+    rest: " The rest of her story follows the power she learns there.",
+  });
+  assert.deepEqual(summaryPreview("Only one sentence about the book."), {
+    preview: "Only one sentence about the book.",
+    rest: "",
+  });
+  assert.deepEqual(summaryPreview("First sentence here. Second sentence follows."), {
+    preview: "First sentence here. Second sentence follows.",
+    rest: "",
+  });
+  const first = `${"A".repeat(430)}.`;
+  const long = `${first} The second sentence stays out of the preview. The third sentence is still part of the summary.`;
+  assert.deepEqual(summaryPreview(long), {
+    preview: first,
+    rest: " The second sentence stays out of the preview. The third sentence is still part of the summary.",
+  });
+  assert.ok(summaryPreview(long).preview.length > 420);
 });
 
 test("a Wikipedia search result becomes a page link", () => {

@@ -40,6 +40,37 @@ export function bookHref(id: string, coverId?: number | null): string {
   return `/book?id=${encodeURIComponent(id)}${cover}`;
 }
 
+const SUMMARY_SENTENCE_LIMIT = 420;
+const SUMMARY_ABBREVIATIONS = new Set(["mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "vs", "etc", "eg", "ie", "vol", "fig", "gen", "col", "lt", "sgt", "capt", "rev", "hon", "inc", "ltd", "co", "mt", "al"]);
+
+export function summaryPreview(text: string): { preview: string; rest: string } {
+  const ends = sentenceEnds(text);
+  if (ends.length <= 2) return { preview: text, rest: "" };
+  const cut = ends[0] > SUMMARY_SENTENCE_LIMIT ? ends[0] : ends[1];
+  return { preview: text.slice(0, cut), rest: text.slice(cut) };
+}
+
+function sentenceEnds(text: string): number[] {
+  const ends: number[] = [];
+  for (const match of text.matchAll(/([.!?]+)(["'”’)\]]*)/g)) {
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+    const next = text[end];
+    if (next && !/\s/.test(next)) continue;
+    if (match[1] === "." && isAbbreviation(text, start)) continue;
+    ends.push(end);
+  }
+  if (text.slice(ends.at(-1) ?? 0).trim()) ends.push(text.length);
+  return ends;
+}
+
+function isAbbreviation(text: string, punctAt: number): boolean {
+  const before = text.slice(0, punctAt);
+  if (/(?:^|[\s(["“‘])[A-Za-z]$/.test(before)) return true;
+  const word = before.match(/[A-Za-z]+$/);
+  return Boolean(word && SUMMARY_ABBREVIATIONS.has(word[0].toLowerCase()));
+}
+
 export function readText(value: unknown): string | null {
   const text = typeof value === "string" ? value : value && typeof value === "object" && "value" in value && typeof value.value === "string" ? value.value : "";
   const clean = text
