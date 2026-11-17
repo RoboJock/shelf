@@ -66,7 +66,8 @@ nav {
   display: none;
   position: absolute;
   top: 100%;
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%);
   min-width: max(100%, 168px);
   max-width: 240px;
   margin: 0;
@@ -82,20 +83,20 @@ nav {
 .nav-pop ul { list-style: none; margin: 0; padding: 0; }
 .nav-pop a {
   display: block;
-  padding: 8px 14px 8px 0;
+  padding: 8px 14px;
   border-radius: 6px;
   color: inherit;
   text-decoration: none;
   font-size: 15px;
   font-weight: 600;
-  text-align: left;
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .nav-pop a:hover,
 .nav-pop a:focus-visible { background: var(--cover); }
-.nav-pop p { margin: 8px 0; color: var(--muted); font-size: 14px; text-align: left; }
+.nav-pop p { margin: 8px 0; color: var(--muted); font-size: 14px; text-align: center; }
 .mark {
   font-family: var(--font-display), Georgia, serif;
   font-size: 28px;
