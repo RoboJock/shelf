@@ -101,7 +101,7 @@ function LinkList({ links }: { links: BookLink[] }) {
   return (
     <ul className="detail-links">
       {links.map((link) => (
-        <li key={link.href}><a href={link.href} target="_blank" rel="noreferrer">{link.label}</a></li>
+        <li key={link.href}><a href={link.href} target="_blank" rel="noopener noreferrer">{link.label}</a></li>
       ))}
     </ul>
   );
@@ -114,7 +114,7 @@ function LinkGroup({ title, links }: { title: string; links: BookLink[] }) {
       {title ? <h2>{title}</h2> : null}
       <ul className="detail-links">
         {links.map((link) => (
-          <li key={link.href}><a href={link.href} target="_blank" rel="noreferrer">{link.label}</a></li>
+          <li key={link.href}><a href={link.href} target="_blank" rel="noopener noreferrer">{link.label}</a></li>
         ))}
       </ul>
     </section>
