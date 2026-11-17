@@ -7,6 +7,7 @@ import type { BookShelf } from "../lib/backend";
 import { enrichBooks } from "../lib/google-books";
 import { useShelf } from "./AppShell";
 import { bookHref } from "../lib/details";
+import { PlaceBook } from "./PlaceBook";
 
 export function Cover({ book }: { book: { title: string; coverId: number | null; image?: string | null } }) {
   const primary = coverUrl(book.coverId);
@@ -130,6 +131,7 @@ function ShelfPicker({ hit, onClose }: { hit: LibraryHit; onClose: () => void })
   const { backend, shelves, refreshShelves } = useShelf();
   const [draft, setDraft] = useState("");
   const [status, setStatus] = useState("");
+  const [placing, setPlacing] = useState(false);
 
   async function saveTo(shelf: BookShelf) {
     setStatus("");
@@ -137,11 +139,13 @@ function ShelfPicker({ hit, onClose }: { hit: LibraryHit; onClose: () => void })
       const [full] = await enrichBooks([hit]);
       await backend.saveBook(full ?? hit, shelf.id);
       refreshShelves();
-      onClose();
+      setPlacing(true);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not save that book.");
     }
   }
+
+  if (placing) return <PlaceBook onDone={onClose} />;
 
   return (
     <div className="picker-back" onClick={onClose}>
@@ -162,7 +166,7 @@ function ShelfPicker({ hit, onClose }: { hit: LibraryHit; onClose: () => void })
               await backend.saveBook(full ?? hit, shelf.id);
               setDraft("");
               refreshShelves();
-              onClose();
+              setPlacing(true);
             }).catch((error: unknown) => {
               setStatus(error instanceof Error ? error.message : "Could not create that shelf.");
             });

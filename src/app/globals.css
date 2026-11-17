@@ -656,6 +656,93 @@ h1 {
   color: var(--muted);
 }
 
+.place-back {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #f7f4ef;
+}
+.place-scene {
+  width: 640px;
+  height: 420px;
+  position: relative;
+  zoom: 1.15;
+}
+.place-tray {
+  position: absolute;
+  left: 169px;
+  right: 169px;
+  bottom: 120px;
+  height: 36px;
+  background: #2e2b45;
+  border-radius: 10px;
+}
+.place-tray::before,
+.place-tray::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 36px;
+  height: 72px;
+  background: #2e2b45;
+  border-radius: 8px 8px 0 0;
+}
+.place-tray::before { left: 0; }
+.place-tray::after { right: 0; }
+.place-row {
+  position: absolute;
+  left: 205px;
+  right: 205px;
+  bottom: 155px;
+  height: 250px;
+  display: flex;
+  align-items: flex-end;
+}
+.place-spine {
+  position: relative;
+  flex: none;
+  border-radius: 4px 4px 0 0;
+}
+.place-spine::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 18%;
+  border-radius: 4px 4px 0 0;
+  background: rgba(255, 255, 255, 0.28);
+}
+.place-green { width: 58px; height: 168px; background: #3faf86; }
+.place-pink { width: 54px; height: 198px; background: #f3c3c0; }
+.place-pink::after { background: rgba(255, 255, 255, 0.35); }
+.place-blue {
+  width: 56px;
+  height: 188px;
+  background: #4aa3f0;
+  opacity: 0;
+  transform-origin: 50% 100%;
+  animation: place-book 2.1s cubic-bezier(.22, .8, .2, 1) both;
+}
+.place-yellow { width: 62px; height: 214px; background: #f0b429; }
+@keyframes place-book {
+  0% { opacity: 0; transform: translate(0, -220px); }
+  18% { opacity: 1; transform: translate(0, -130px); }
+  55% { opacity: 1; transform: translate(0, -16px); }
+  74% { opacity: 1; transform: translate(0, 5px); }
+  88% { transform: translate(0, -2px); }
+  100% { opacity: 1; transform: none; }
+}
+@media (max-width: 700px) {
+  .place-scene { zoom: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .place-blue { animation: none; opacity: 1; }
+}
+
 @media (max-width: 1120px) {
   .rail { position: static; width: auto; margin-bottom: 8px; }
   .workspace::before { content: none; }
