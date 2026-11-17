@@ -78,6 +78,13 @@ nav {
   box-shadow: 0 14px 28px rgba(36, 28, 22, 0.12);
   z-index: 8;
 }
+[data-theme="dark"] .nav-pop {
+  background: #2a241e;
+}
+[data-theme="dark"] .nav-pop a:hover,
+[data-theme="dark"] .nav-pop a:focus-visible {
+  background: #3d342b;
+}
 .nav-menu.open .nav-pop { display: block; }
 .nav-pop.catalog { max-width: 320px; }
 .nav-pop ul { list-style: none; margin: 0; padding: 0; }
