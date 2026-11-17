@@ -101,6 +101,7 @@ nav {
   font-family: var(--font-display), Georgia, serif;
   font-size: 28px;
   font-weight: 560;
+  font-style: italic;
   letter-spacing: -0.03em;
   color: inherit;
   text-decoration: none;

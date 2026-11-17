@@ -4,7 +4,7 @@ import { Newsreader, Source_Sans_3 } from "next/font/google";
 import { AppShell } from "../components/AppShell";
 import "./globals.css";
 
-const display = Newsreader({ subsets: ["latin"], variable: "--font-display" });
+const display = Newsreader({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-display" });
 const body = Source_Sans_3({ subsets: ["latin"], variable: "--font-body" });
 
 export const metadata: Metadata = {
