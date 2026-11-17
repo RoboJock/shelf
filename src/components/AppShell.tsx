@@ -56,9 +56,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <ShelfContext.Provider value={{ backend, user, shelves, shelvesReady, refreshShelves: () => setTick((value) => value + 1) }}>
       <main className="page">
         <nav>
-          <Link href="/" className="mark">Shelf</Link>
+          <div className="nav-left">
+            <Link href="/" className="mark">Shelf</Link>
+            <Link href="/search" className="nav-link" aria-current={pathname === "/search" ? "page" : undefined}>Search</Link>
+          </div>
           <div className="nav-right">
-            <Link href="/search" className="who" aria-current={pathname === "/search" ? "page" : undefined}>Search</Link>
             <button
               type="button"
               className="theme-toggle"
