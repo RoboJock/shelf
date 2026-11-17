@@ -792,8 +792,7 @@ a.cover-slot:focus-visible .empty-plus {
 }
 .account h2 { margin: 0 0 8px; font-family: var(--font-display), Georgia, serif; font-size: 28px; }
 .account p { margin: 0 0 12px; color: var(--muted); }
-.account .row { display: flex; gap: 8px; margin-bottom: 8px; }
-.account .row button, .account .sign-out {
+.account .sign-out {
   height: 40px;
   border-radius: 8px;
   border: 1px solid var(--field-line);
@@ -802,7 +801,27 @@ a.cover-slot:focus-visible .empty-plus {
   padding: 0 14px;
   font-weight: 600;
 }
-.account .row button.on, .account form button[type="submit"] {
+.account .actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.account .actions button,
+.account .actions a {
+  flex: 1;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--field-line);
+  background: transparent;
+  color: var(--ink);
+  padding: 0 14px;
+  font-weight: 600;
+  font-size: 15px;
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+}
+.account .actions button[type="submit"] {
   background: var(--accent);
   border-color: transparent;
   color: var(--on-accent);
@@ -816,7 +835,6 @@ a.cover-slot:focus-visible .empty-plus {
   padding: 0 12px;
   font-size: 16px;
 }
-.account form button[type="submit"] { width: 100%; margin-top: 8px; }
 
 .shelf-entry h2 {
   margin: 0;
