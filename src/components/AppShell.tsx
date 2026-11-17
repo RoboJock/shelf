@@ -94,16 +94,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 function ShelvesMenu() {
   const pathname = usePathname();
   const { shelves } = useShelf();
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   return (
-    <div className="nav-menu">
-      <Link href="/shelf" className="nav-link" aria-current={pathname === "/shelf" ? "page" : undefined}>Shelves</Link>
+    <div
+      className={open ? "nav-menu open" : "nav-menu"}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+    >
+      <Link
+        href="/shelf"
+        className="nav-link"
+        aria-current={pathname === "/shelf" ? "page" : undefined}
+        aria-expanded={open}
+        onFocus={() => setOpen(true)}
+        onClick={() => setOpen(false)}
+      >
+        Shelves
+      </Link>
       <div className="nav-pop" role="navigation" aria-label="Your shelves">
         {shelves.length > 0 ? (
           <ul>
             {shelves.map((shelf) => (
               <li key={shelf.id}>
-                <Link href={`/shelf?id=${encodeURIComponent(shelf.id)}`}>{shelf.name}</Link>
+                <Link href={`/shelf?id=${encodeURIComponent(shelf.id)}`} onClick={() => setOpen(false)}>{shelf.name}</Link>
               </li>
             ))}
           </ul>

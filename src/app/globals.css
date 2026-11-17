@@ -65,32 +65,24 @@ nav {
 .nav-pop {
   display: none;
   position: absolute;
-  top: calc(100% + 10px);
+  top: 100%;
   left: 0;
-  min-width: 168px;
+  min-width: max(100%, 168px);
   max-width: 240px;
-  padding: 6px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: 0 10px 28px rgba(36, 28, 22, 0.14);
+  margin: 0;
+  padding: 4px 0 6px;
+  background: var(--field);
+  border: 1px solid var(--ink);
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 14px 28px rgba(36, 28, 22, 0.12);
   z-index: 8;
 }
-.nav-menu::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 100%;
-  height: 14px;
-}
-.nav-menu:hover .nav-pop,
-.nav-menu:focus-within .nav-pop { display: block; }
+.nav-menu.open .nav-pop { display: block; }
 .nav-pop ul { list-style: none; margin: 0; padding: 0; }
 .nav-pop a {
   display: block;
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 8px 14px 8px 0;
+  border-radius: 6px;
   color: inherit;
   text-decoration: none;
   font-size: 15px;
@@ -102,7 +94,7 @@ nav {
 }
 .nav-pop a:hover,
 .nav-pop a:focus-visible { background: var(--cover); }
-.nav-pop p { margin: 8px 12px; color: var(--muted); font-size: 14px; text-align: left; }
+.nav-pop p { margin: 8px 0; color: var(--muted); font-size: 14px; text-align: left; }
 .mark {
   font-family: var(--font-display), Georgia, serif;
   font-size: 28px;
