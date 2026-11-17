@@ -796,6 +796,8 @@ h1 {
   .shelf-find p { flex-basis: auto; }
   .detail { grid-template-columns: 1fr; }
   .detail h1 { font-size: 40px; }
-  nav { align-items: flex-start; }
-  .nav-right { flex-wrap: wrap; justify-content: flex-end; }
+  nav { align-items: flex-start; flex-wrap: wrap; row-gap: 14px; }
+  .nav-left { flex-wrap: wrap; gap: 14px 20px; width: 100%; }
+  .nav-links { flex-wrap: wrap; gap: 10px 20px; }
+  .nav-right { flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
 }
